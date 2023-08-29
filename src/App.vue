@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch, watchEffect } from "vue";
 import { ElMessage } from "element-plus";
-import { getUrlParams, lrcToList } from "./utils/util";
+import { getUrlParams, lrcToList, timeToString } from "./utils/util";
 import { Play, PauseOne, ReplayMusic } from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
@@ -10,6 +10,8 @@ import "element-plus/theme-chalk/el-message.css";
 
 // audio dom
 const audio = ref<HTMLAudioElement>();
+
+const lrcList = ref<HTMLDivElement[]>();
 
 // 获取id
 const params = ref<{ id?: string; [key: string]: any }>(
@@ -50,7 +52,20 @@ const playerConfig = reactive({
   // 展示的歌词下标
   lrcIndex: 0,
   // 控制歌词滚动
-  lrcTransformY: "translateY(calc(12.7vw))",
+  lrcTransformY: "translateY(-10px)",
+  // 歌词字体控制
+  lrcFontSize: "16px",
+  lrcSelectFontSize: "20px",
+  // 页面宽度
+  clientWidth: 0,
+  // 进度条百分比
+  progressPercent: "0%",
+});
+
+// 播放器展示数据
+const playerInfo = reactive({
+  currectTime: "00:00",
+  allTime: "00:00",
 });
 
 // 播放器事件
@@ -68,14 +83,22 @@ const playerEvents = reactive({
     playerConfig.reAnimation = true;
     setTimeout(() => (playerConfig.reAnimation = false), 100);
   },
+  // 点击进度条设置播放位置
+  setProgress(e: PointerEvent) {
+    let position = parseFloat(
+      (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+    );
+    if (position < 0) position = 0;
+    else if (position > 1) position = 1;
+    const time = Math.floor(playerConfig.allTime * position);
+    playerConfig.play = false;
+    audio.value!.currentTime = time;
+    playerConfig.play = true;
+  },
 });
 
 // 播放器原生事件
 const audioEvents = reactive({
-  // 当音乐缓存到可以播放时触发
-  canplaythrough() {
-    playerConfig.play = true;
-  },
   // 当音乐播放完毕触发
   ended() {
     playerConfig.reAnimation = true;
@@ -86,20 +109,29 @@ const audioEvents = reactive({
     playerConfig.currentTime = parseFloat(
       (e.target as HTMLAudioElement).currentTime.toFixed(2)
     );
+    playerInfo.currectTime = timeToString(Math.ceil(playerConfig.currentTime));
+    const percent =
+      parseFloat((playerConfig.currentTime / playerConfig.allTime).toFixed(2)) *
+      100;
+    if (percent >= 100) playerConfig.progressPercent = 100 + "%";
+    else if (percent <= 0 || playerConfig.allTime === 0)
+      playerConfig.progressPercent = 0 + "%";
+    else playerConfig.progressPercent = percent + "%";
   },
   // 音乐加载完成获取总时间
   durationchange(e: Event) {
     playerConfig.allTime = parseFloat(
       (e.target as HTMLAudioElement).duration.toFixed(2)
     );
+    playerInfo.allTime = timeToString(Math.ceil(playerConfig.allTime));
   },
 });
 
 // 监听控制字段
 watchEffect(() => {
   // 监听播放
-  if (playerConfig.play) {
-    try {
+  try {
+    if (playerConfig.play) {
       audio.value?.play();
       // 当音乐没有正确播放则不进行操作
       if (audio.value?.paused) {
@@ -110,11 +142,12 @@ watchEffect(() => {
       if (playerConfig.reAnimation) {
         playerConfig.reAnimation = false;
       }
-    } catch {}
-  } else {
-    coverAction.value = "paused";
-    audio.value?.pause();
-  }
+    } else if (!playerConfig.play) {
+      coverAction.value = "paused";
+      if (audio.value?.paused) return;
+      audio.value?.pause();
+    }
+  } catch {}
 });
 
 // 监听当前播放时间
@@ -138,8 +171,17 @@ watch(
       }
     }
     playerConfig.lrcIndex = index;
-    playerConfig.lrcTransformY = `translateY(calc(12.7vw - ${index * 4.3}vw))`;
-    const lrcItemDom: HTMLDivElement = document.querySelector(".LRC.select")!;
+
+    // 计算歌词文字大小
+    const lrcSelectFontSize =
+      (playerConfig.clientWidth / 100) * 3 > 16
+        ? (playerConfig.clientWidth / 100) * 3.5
+        : 20;
+    playerConfig.lrcTransformY = `translateY(calc(${
+      (lrcSelectFontSize / 2) * -1
+    }px - ${
+      (document.querySelector(".LRC.select") as HTMLDivElement).offsetTop
+    }px))`;
   }
 );
 
@@ -172,6 +214,21 @@ const getMusic = async () => {
   }
 };
 
+// 设置歌词文字大小
+const setLrcFontSize = () => {
+  const clientWidth = document.body.clientWidth;
+  playerConfig.clientWidth = clientWidth;
+
+  // 设置当前歌词文字大小
+  const lrcSelectFontSize =
+    (clientWidth / 100) * 3 > 16 ? (clientWidth / 100) * 3.5 : 18;
+  playerConfig.lrcSelectFontSize = lrcSelectFontSize + "px";
+  // 设置歌词默认文字大小
+  const lrcFontSize =
+    (clientWidth / 100) * 3 > 16 ? (clientWidth / 100) * 3 : 16;
+  playerConfig.lrcFontSize = lrcFontSize + "px";
+};
+
 onMounted(() => {
   const { id } = params.value;
   if (!id) {
@@ -180,6 +237,7 @@ onMounted(() => {
     });
   }
   getMusic();
+  setLrcFontSize();
 });
 </script>
 
@@ -228,7 +286,14 @@ onMounted(() => {
           />
         </div>
         <!-- 进度条 -->
-        <div class="progress"></div>
+        <div class="progress">
+          <div class="progressBox" @click="playerEvents.setProgress">
+            <div class="progressActive"></div>
+          </div>
+          <div class="progressTime">
+            {{ playerInfo.currectTime }}/{{ playerInfo.allTime }}
+          </div>
+        </div>
         <!-- 歌词 -->
         <div class="lrc">
           <div class="lrcLine"></div>
@@ -236,10 +301,11 @@ onMounted(() => {
             <div
               class="lrcItem LRC"
               :class="{ select: playerConfig.lrcIndex === index }"
-              :ref="playerConfig.lrcIndex === index ? 'lrcItem' : undefined"
               v-for="(l, index) in lrc"
               :key="index"
-              :id="l.t"
+              :data-time="l.t"
+              :data-index="index"
+              ref="lrcList"
             >
               {{ l.c }}
             </div>
@@ -253,7 +319,6 @@ onMounted(() => {
       ref="audio"
       :src="musicData.url"
       preload="auto"
-      @canplaythrough="audioEvents.canplaythrough"
       @ended="audioEvents.ended"
       @timeupdate="audioEvents.timeupdate"
       @durationchange="audioEvents.durationchange"
@@ -355,11 +420,48 @@ onMounted(() => {
         position: relative;
         mix-blend-mode: difference;
       }
+      .progress {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 1rem auto 0 auto;
+        width: 93%;
+
+        .progressBox {
+          flex-grow: 1;
+          border: 1px solid#c4c4c4;
+          background-color: #aaaaaa;
+          border-radius: 5px;
+          overflow: hidden;
+          height: 5px;
+          z-index: 1;
+          margin-right: 1rem;
+
+          .progressActive {
+            background: linear-gradient(
+              to right,
+              rgb(208, 255, 147),
+              rgb(251, 255, 0),
+              rgb(252, 206, 1),
+              rgb(252, 164, 1)
+            );
+            border-radius: 5px;
+            z-index: 1;
+            height: 5px;
+            width: v-bind("playerConfig.progressPercent");
+          }
+        }
+        .progressTime {
+          color: rgb(255, 255, 255);
+          mix-blend-mode: difference;
+          z-index: 1;
+        }
+      }
 
       .lrc {
         height: 30vw;
-        font-size: 3vw;
-        margin-top: 2rem;
+        font-size: v-bind("playerConfig.lrcFontSize");
+        margin: 2rem 1rem 0 1rem;
         overflow: hidden;
         mix-blend-mode: difference;
         position: relative;
@@ -376,7 +478,11 @@ onMounted(() => {
 
         .lrcBox {
           transform: v-bind("playerConfig.lrcTransformY");
-          transition: transform 0.15s linear;
+          transition: transform 0.05s linear;
+          width: 100%;
+          position: absolute;
+          top: 50%;
+          margin: 0 auto;
 
           .lrcItem {
             text-align: center;
@@ -384,7 +490,7 @@ onMounted(() => {
             transition: font-size 0.1s linear;
 
             &.select {
-              font-size: 3.5vw;
+              font-size: v-bind("playerConfig.lrcSelectFontSize");
               color: #00ff4c;
             }
           }
