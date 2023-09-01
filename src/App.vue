@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch, watchEffect } from "vue";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+  watchEffect,
+} from "vue";
 import { ElMessage } from "element-plus";
 import { getUrlParams, lrcToList, timeToString } from "./utils/util";
 import { Play, PauseOne, ReplayMusic } from "@icon-park/vue-next";
@@ -8,10 +16,10 @@ import * as apis from "./api";
 
 import "element-plus/theme-chalk/el-message.css";
 
-// audio dom
+// dom
 const audio = ref<HTMLAudioElement>();
-
-const lrcList = ref<HTMLDivElement[]>();
+const titleBox = ref<HTMLDivElement>();
+const title = ref<HTMLDivElement>();
 
 // 获取id
 const params = ref<{ id?: string; [key: string]: any }>(
@@ -68,6 +76,26 @@ const playerInfo = reactive({
   allTime: "00:00",
 });
 
+// 标题宽度参数
+const titleParam = reactive({
+  titleBoxWidth: "",
+  titleWidth: "",
+});
+// 判断标题是否溢出
+const isOverflow = ref(false);
+// 计算css样式（标题移动距离）
+const titleMove = computed(
+  () =>
+    `translateX(calc(-${titleParam.titleWidth} + ${titleParam.titleBoxWidth} - 32px))`
+);
+// 计算标题滚动动画时间
+const titleAnimationTime = computed(() => {
+  const titleBoxWidth = Number(titleParam.titleBoxWidth.slice(0, -2));
+  const titleWidth = Number(titleParam.titleWidth.slice(0, -2));
+  const moveWidth = titleWidth - titleBoxWidth;
+  return `${Math.floor(Math.log(0.7 * moveWidth + 1))}s`;
+});
+
 // 播放器事件
 const playerEvents = reactive({
   // 控制播放|暂停
@@ -91,9 +119,7 @@ const playerEvents = reactive({
     if (position < 0) position = 0;
     else if (position > 1) position = 1;
     const time = Math.floor(playerConfig.allTime * position);
-    playerConfig.play = false;
     audio.value!.currentTime = time;
-    playerConfig.play = true;
   },
 });
 
@@ -170,7 +196,11 @@ watch(
         break;
       }
     }
-    playerConfig.lrcIndex = index;
+
+    document.title =
+      lrc.value.length === 0
+        ? `${musicData.value.title} -- ${musicData.value.author}`
+        : lrc.value[index].c;
 
     // 计算歌词文字大小
     const lrcSelectFontSize =
@@ -182,6 +212,7 @@ watch(
     }px - ${
       (document.querySelector(".LRC.select") as HTMLDivElement).offsetTop
     }px))`;
+    playerConfig.lrcIndex = index;
   }
 );
 
@@ -206,6 +237,13 @@ const getMusic = async () => {
       const { data } = res.data;
       musicData.value = data;
       lrc.value = lrcToList(musicData.value!.lrc).ms;
+      document.title = `${musicData.value.title} -- ${musicData.value.author}`;
+      nextTick(() => {
+        titleParam.titleBoxWidth = titleBox.value!.offsetWidth + "px";
+        titleParam.titleWidth = title.value!.offsetWidth + "px";
+        isOverflow.value =
+          titleBox.value!.offsetWidth < title.value!.offsetWidth;
+      });
     }
   } catch (e) {
     console.error(e);
@@ -229,6 +267,15 @@ const setLrcFontSize = () => {
   playerConfig.lrcFontSize = lrcFontSize + "px";
 };
 
+// 设置标题logo
+watch(
+  () => musicData.value.pic,
+  () => {
+    (document.querySelector("link[rel*='icon']") as HTMLLinkElement).href =
+      musicData.value.pic;
+  }
+);
+
 onMounted(() => {
   const { id } = params.value;
   if (!id) {
@@ -250,9 +297,14 @@ onMounted(() => {
     <div class="playerBackground">
       <div class="player">
         <!-- 标题 -->
-        <div class="title">
-          {{ musicData.title || "无歌名" }} --
-          {{ musicData.author || "无歌手" }}
+        <div
+          class="title_box"
+          :class="{ isOverflow: isOverflow }"
+          ref="titleBox"
+        >
+          <div class="title" ref="title">
+            {{ `${musicData.title} -- ${musicData.author || "暂无数据"}` }}
+          </div>
         </div>
         <!-- 封面 -->
         <div
@@ -358,7 +410,7 @@ onMounted(() => {
       height: calc(100% - 2rem);
       border-radius: 0.5rem;
 
-      .title {
+      .title_box {
         text-align: center;
         font-size: 1.2rem;
         font-weight: bold;
@@ -366,6 +418,17 @@ onMounted(() => {
         line-height: 3rem;
         color: #fff;
         mix-blend-mode: difference;
+
+        &.isOverflow {
+          margin: 0 16px;
+          animation: titleScroll linear infinite reverse;
+          animation-duration: v-bind("titleAnimationTime");
+        }
+
+        .title {
+          white-space: nowrap;
+          display: inline-block;
+        }
       }
 
       .cover {
@@ -474,6 +537,7 @@ onMounted(() => {
           left: 0;
           width: 100%;
           height: 1px;
+          display: none;
         }
 
         .lrcBox {
@@ -507,6 +571,18 @@ onMounted(() => {
 
   100% {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes titleScroll {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: v-bind("titleMove");
+  }
+  100% {
+    transform: translateX(0);
   }
 }
 </style>
