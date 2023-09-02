@@ -9,7 +9,7 @@ import {
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
-import { getUrlParams, lrcToList, timeToString } from "./utils/util";
+import { lrcToList, timeToString } from "./utils/util";
 import { Play, PauseOne, ReplayMusic } from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
@@ -21,10 +21,6 @@ const audio = ref<HTMLAudioElement>();
 const titleBox = ref<HTMLDivElement>();
 const title = ref<HTMLDivElement>();
 
-// 获取id
-const params = ref<{ id?: string;[key: string]: any }>(
-  getUrlParams(location.search)
-);
 // 加载
 const loading = ref<boolean>(false);
 // 加载文本
@@ -225,7 +221,7 @@ const getMusic = async () => {
   try {
     loading.value = true;
     loadingTips.value = "数据加载中...";
-    const res = await apis.getMusic(params.value.id!);
+    const res = await apis.getMusic({random:1});
     const { state } = res.data;
     if (state === "warning") {
       const { message } = res.data;
@@ -281,12 +277,6 @@ watch(
 );
 
 onMounted(() => {
-  const { id } = params.value;
-  if (!id) {
-    return ElMessage.error({
-      message: "无效参数",
-    });
-  }
   getMusic();
   setLrcFontSize();
 });
