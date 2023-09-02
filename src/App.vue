@@ -22,7 +22,7 @@ const titleBox = ref<HTMLDivElement>();
 const title = ref<HTMLDivElement>();
 
 // 获取id
-const params = ref<{ id?: string; [key: string]: any }>(
+const params = ref<{ id?: string;[key: string]: any }>(
   getUrlParams(location.search)
 );
 // 加载
@@ -109,18 +109,24 @@ const playerEvents = reactive({
     }
     audio.value!.currentTime = 0;
     playerConfig.reAnimation = true;
-    setTimeout(() => (playerConfig.reAnimation = false), 100);
+    setTimeout(() => {
+      playerConfig.reAnimation = false;
+      playerConfig.play = true
+
+  }, 100);
   },
-  // 点击进度条设置播放位置
-  setProgress(e: PointerEvent) {
-    let position = parseFloat(
-      (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
-    );
-    if (position < 0) position = 0;
-    else if (position > 1) position = 1;
-    const time = Math.floor(playerConfig.allTime * position);
-    audio.value!.currentTime = time;
-  },
+// 点击进度条设置播放位置
+setProgress(e: PointerEvent) {
+  ElMessage.warning('进度条拖动功能开发中...');
+  return
+  let position = parseFloat(
+    (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+  );
+  if (position < 0) position = 0;
+  else if (position > 1) position = 1;
+  const time = Math.floor(playerConfig.allTime * position);
+  audio.value!.currentTime = time;
+},
 });
 
 // 播放器原生事件
@@ -173,7 +179,7 @@ watchEffect(() => {
       if (audio.value?.paused) return;
       audio.value?.pause();
     }
-  } catch {}
+  } catch { }
 });
 
 // 监听当前播放时间
@@ -207,11 +213,9 @@ watch(
       (playerConfig.clientWidth / 100) * 3 > 16
         ? (playerConfig.clientWidth / 100) * 3.5
         : 20;
-    playerConfig.lrcTransformY = `translateY(calc(${
-      (lrcSelectFontSize / 2) * -1
-    }px - ${
-      (document.querySelector(".LRC.select") as HTMLDivElement).offsetTop
-    }px))`;
+    playerConfig.lrcTransformY = `translateY(calc(${(lrcSelectFontSize / 2) * -1
+      }px - ${(document.querySelector(".LRC.select") as HTMLDivElement).offsetTop
+      }px))`;
     playerConfig.lrcIndex = index;
   }
 );
@@ -289,76 +293,41 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="container"
-    v-loading="loading"
-    :element-loading-text="loadingTips"
-  >
+  <div class="container" v-loading="loading" :element-loading-text="loadingTips">
     <div class="playerBackground">
       <div class="player">
         <!-- 标题 -->
-        <div
-          class="title_box"
-          :class="{ isOverflow: isOverflow }"
-          ref="titleBox"
-        >
+        <div class="title_box" :class="{ isOverflow: isOverflow }" ref="titleBox">
           <div class="title" ref="title">
             {{ `${musicData.title} -- ${musicData.author || "暂无数据"}` }}
           </div>
         </div>
         <!-- 封面 -->
-        <div
-          class="cover"
-          :class="{
-            image: musicData.pic.length > 0,
-            reAnimation: playerConfig.reAnimation,
-          }"
-        ></div>
+        <div class="cover" :class="{
+          image: musicData.pic.length > 0,
+          reAnimation: playerConfig.reAnimation,
+        }"></div>
         <!-- 控制按钮 -->
         <div class="control">
-          <play
-            theme="outline"
-            size="50"
-            fill="#fff"
-            v-if="!playerConfig.play"
-            @click="playerEvents.c_play"
-          />
-          <pause-one
-            theme="outline"
-            size="50"
-            fill="#fff"
-            v-else
-            @click="playerEvents.c_play"
-          />
-          <replay-music
-            theme="outline"
-            size="50"
-            fill="#fff"
-            @click="playerEvents.c_replay"
-          />
+          <play theme="outline" size="50" fill="#fff" v-if="!playerConfig.play" @click="playerEvents.c_play" />
+          <pause-one theme="outline" size="50" fill="#fff" v-else @click="playerEvents.c_play" />
+          <replay-music theme="outline" size="50" fill="#fff" @click="playerEvents.c_replay" />
         </div>
         <!-- 进度条 -->
         <div class="progress">
+          <div class="progressTime">
+            {{ playerInfo.currectTime }}
+          </div>
           <div class="progressBox" @click="playerEvents.setProgress">
             <div class="progressActive"></div>
-          </div>
-          <div class="progressTime">
-            {{ playerInfo.currectTime }}/{{ playerInfo.allTime }}
           </div>
         </div>
         <!-- 歌词 -->
         <div class="lrc">
           <div class="lrcLine"></div>
           <div class="lrcBox">
-            <div
-              class="lrcItem LRC"
-              :class="{ select: playerConfig.lrcIndex === index }"
-              v-for="(l, index) in lrc"
-              :key="index"
-              :data-time="l.t"
-              :data-index="index"
-              ref="lrcList"
-            >
+            <div class="lrcItem LRC" :class="{ select: playerConfig.lrcIndex === index }" v-for="(l, index) in lrc"
+              :key="index" :data-time="l.t" :data-index="index" ref="lrcList">
               {{ l.c }}
             </div>
             <div class="lrcItem select" v-show="lrc.length == 0">暂无歌词</div>
@@ -367,14 +336,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <audio
-      ref="audio"
-      :src="musicData.url"
-      preload="auto"
-      @ended="audioEvents.ended"
-      @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange"
-    ></audio>
+    <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
+      @durationchange="audioEvents.durationchange"></audio>
   </div>
 </template>
 
@@ -416,6 +379,7 @@ onMounted(() => {
         font-weight: bold;
         height: 3rem;
         line-height: 3rem;
+        padding-top: 1rem;
         color: #fff;
         mix-blend-mode: difference;
 
@@ -483,6 +447,7 @@ onMounted(() => {
         position: relative;
         mix-blend-mode: difference;
       }
+
       .progress {
         display: flex;
         justify-content: space-between;
@@ -498,22 +463,21 @@ onMounted(() => {
           overflow: hidden;
           height: 5px;
           z-index: 1;
-          margin-right: 1rem;
+          margin: 0 1rem;
 
           .progressActive {
-            background: linear-gradient(
-              to right,
-              rgb(208, 255, 147),
-              rgb(251, 255, 0),
-              rgb(252, 206, 1),
-              rgb(252, 164, 1)
-            );
+            background: linear-gradient(to right,
+                rgb(208, 255, 147),
+                rgb(251, 255, 0),
+                rgb(252, 206, 1),
+                rgb(252, 164, 1));
             border-radius: 5px;
             z-index: 1;
             height: 5px;
             width: v-bind("playerConfig.progressPercent");
           }
         }
+
         .progressTime {
           color: rgb(255, 255, 255);
           mix-blend-mode: difference;
@@ -578,9 +542,11 @@ onMounted(() => {
   0% {
     transform: translateX(0);
   }
+
   50% {
     transform: v-bind("titleMove");
   }
+
   100% {
     transform: translateX(0);
   }

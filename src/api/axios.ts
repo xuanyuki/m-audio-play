@@ -9,8 +9,6 @@ axios.defaults.timeout = 30000;
 // 拦截发送请求
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-    token && (config.headers.Authorization = "Bearer " + token);
     return config;
   },
   (err) => {
