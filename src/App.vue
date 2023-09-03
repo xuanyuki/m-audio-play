@@ -10,11 +10,12 @@ import {
 } from "vue";
 import { ElMessage } from "element-plus";
 import { lrcToList, timeToString } from "./utils/util";
-import { Play, PauseOne, ReplayMusic } from "@icon-park/vue-next";
+import { Play, PauseOne, ReplayMusic, Theme, Translation, Text, Brightness, DarkMode } from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
 
 import "element-plus/theme-chalk/el-message.css";
+import "element-plus/theme-chalk/el-badge.css";
 
 // dom
 const audio = ref<HTMLAudioElement>();
@@ -22,9 +23,9 @@ const titleBox = ref<HTMLDivElement>();
 const title = ref<HTMLDivElement>();
 
 // 加载
-const loading = ref<boolean>(false);
+const loading = ref<boolean>(true);
 // 加载文本
-const loadingTips = ref<string>("");
+const loadingTips = ref<string>("数据加载中..");
 // 音乐参数
 const musicData = ref<types.IMusicData>({
   author: "",
@@ -45,6 +46,10 @@ const coverAction = ref<"paused" | "running">("running");
 
 // 控制播放器字段
 const playerConfig = reactive({
+  // 主题
+  theme: 'theme-default',
+  // 自适应歌词文字颜色
+  autoColor: 'difference',
   // 控制播放
   play: false,
   // 控制是否给封面挂载动画
@@ -56,7 +61,7 @@ const playerConfig = reactive({
   // 展示的歌词下标
   lrcIndex: 0,
   // 控制歌词滚动
-  lrcTransformY: "translateY(-10px)",
+  lrcTransformY: "translateY(0px)",
   // 歌词字体控制
   lrcFontSize: "16px",
   lrcSelectFontSize: "20px",
@@ -64,6 +69,8 @@ const playerConfig = reactive({
   clientWidth: 0,
   // 进度条百分比
   progressPercent: "0%",
+  // 播放模式
+  mode: 'default' as types.playMode
 });
 
 // 播放器展示数据
@@ -109,20 +116,46 @@ const playerEvents = reactive({
       playerConfig.reAnimation = false;
       playerConfig.play = true
 
-  }, 100);
+    }, 100);
   },
-// 点击进度条设置播放位置
-setProgress(e: PointerEvent) {
-  ElMessage.warning('进度条拖动功能开发中...');
-  return
-  let position = parseFloat(
-    (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
-  );
-  if (position < 0) position = 0;
-  else if (position > 1) position = 1;
-  const time = Math.floor(playerConfig.allTime * position);
-  audio.value!.currentTime = time;
-},
+  // 点击进度条设置播放位置
+  setProgress(e: PointerEvent) {
+    ElMessage({
+      type: 'warning',
+      message: '进度条拖动功能开发中...',
+      grouping: true
+    });
+    return
+    let position = parseFloat(
+      (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+    );
+    if (position < 0) position = 0;
+    else if (position > 1) position = 1;
+    const time = Math.floor(playerConfig.allTime * position);
+    audio.value!.currentTime = time;
+  },
+
+  // 切换歌词颜色自适应
+  checkoutColorMode() {
+    if (playerConfig.theme !== 'theme-default') return;
+    playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
+  },
+  // 切换主题
+  checkoutTheme() {
+    switch (playerConfig.theme) {
+      case 'theme-default':
+        playerConfig.theme = 'theme-light';
+        playerConfig.autoColor = 'default';
+        break;
+      case 'theme-light':
+        playerConfig.theme = 'theme-dark';
+        playerConfig.autoColor = 'default';
+        break;
+      case 'theme-dark':
+        playerConfig.theme = 'theme-default';
+        break;
+    }
+  }
 });
 
 // 播放器原生事件
@@ -131,6 +164,17 @@ const audioEvents = reactive({
   ended() {
     playerConfig.reAnimation = true;
     playerConfig.play = false;
+    switch (playerConfig.mode) {
+      case 'loop':
+        playerEvents.c_replay();
+        break;
+      case 'random':
+        getMusic();
+        playerEvents.c_replay();
+        break;
+      default:
+        break;
+    }
   },
   // 音乐播放时获取播放时间
   timeupdate(e: Event) {
@@ -153,6 +197,18 @@ const audioEvents = reactive({
     );
     playerInfo.allTime = timeToString(Math.ceil(playerConfig.allTime));
   },
+  canplaythrough() {
+    loading.value = false
+  },
+  error() {
+    if (!musicData.value.src) return;
+    loading.value = false
+    ElMessage({
+      type: 'error',
+      message: '音乐播放失败',
+      grouping: true
+    })
+  }
 });
 
 // 监听控制字段
@@ -186,10 +242,12 @@ watch(
     if (lrc.value.length < 2) return;
     let index = 0;
     for (let i = 0; i < lrc.value.length - 1; i++) {
-      if (Number(lrc.value[i].t) > nv) {
+      if (Number(lrc.value[i].t) > nv && i === 0) {
         index = 0;
-      } else if (Number(lrc.value[i + 1].t) < nv) {
+        break;
+      } else if (Number(lrc.value[i + 1].t) < nv && i === lrc.value.length - 1) {
         index = lrc.value.length - 1;
+        break;
       } else if (
         Number(lrc.value[i].t) < nv &&
         Number(lrc.value[i + 1].t) >= nv
@@ -203,15 +261,12 @@ watch(
       lrc.value.length === 0
         ? `${musicData.value.title} -- ${musicData.value.author}`
         : lrc.value[index].c;
+    const lrcSelectDom = document.querySelector(".LRC.select") as HTMLDivElement
 
-    // 计算歌词文字大小
-    const lrcSelectFontSize =
-      (playerConfig.clientWidth / 100) * 3 > 16
-        ? (playerConfig.clientWidth / 100) * 3.5
-        : 20;
-    playerConfig.lrcTransformY = `translateY(calc(${(lrcSelectFontSize / 2) * -1
-      }px - ${(document.querySelector(".LRC.select") as HTMLDivElement).offsetTop
+    const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom.offsetHeight : 20) / 2 * - 1
+      }px - ${(Number(playerConfig.lrcFontSize.slice(0, -2)) / 2)}px - ${lrcSelectDom.offsetTop
       }px))`;
+    playerConfig.lrcTransformY = moveHeight
     playerConfig.lrcIndex = index;
   }
 );
@@ -219,9 +274,7 @@ watch(
 // 获取音乐参数
 const getMusic = async () => {
   try {
-    loading.value = true;
-    loadingTips.value = "数据加载中...";
-    const res = await apis.getMusic({random:1});
+    const res = await apis.getMusic({ random: 1 });
     const { state } = res.data;
     if (state === "warning") {
       const { message } = res.data;
@@ -247,8 +300,7 @@ const getMusic = async () => {
     }
   } catch (e) {
     console.error(e);
-  } finally {
-    loading.value = false;
+    loading.value = false
   }
 };
 
@@ -283,7 +335,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container" v-loading="loading" :element-loading-text="loadingTips">
+  <div class="container" v-loading="loading" :element-loading-text="loadingTips" :class="playerConfig.theme">
     <div class="playerBackground">
       <div class="player">
         <!-- 标题 -->
@@ -302,6 +354,19 @@ onMounted(() => {
           <play theme="outline" size="50" fill="#fff" v-if="!playerConfig.play" @click="playerEvents.c_play" />
           <pause-one theme="outline" size="50" fill="#fff" v-else @click="playerEvents.c_play" />
           <replay-music theme="outline" size="50" fill="#fff" @click="playerEvents.c_replay" />
+
+          <div class="theme" @click="playerEvents.checkoutTheme">
+            <theme theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-default'" />
+            <brightness theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-light'" />
+            <dark-mode theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-dark'" />
+          </div>
+
+
+          <div class="textcolor" @click="playerEvents.checkoutColorMode">
+            <translation theme="outline" size="24" fill="#fff" v-show="playerConfig.autoColor === 'difference'" />
+            <Text theme="outline" size="24" fill="#fff" v-show="playerConfig.autoColor === 'default'" />
+          </div>
+
         </div>
         <!-- 进度条 -->
         <div class="progress">
@@ -310,6 +375,9 @@ onMounted(() => {
           </div>
           <div class="progressBox" @click="playerEvents.setProgress">
             <div class="progressActive"></div>
+          </div>
+          <div class="progressTime">
+            {{ playerInfo.allTime }}
           </div>
         </div>
         <!-- 歌词 -->
@@ -327,7 +395,8 @@ onMounted(() => {
     </div>
 
     <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange"></audio>
+      @durationchange="audioEvents.durationchange" @canplaythrough="audioEvents.canplaythrough"
+      @error="audioEvents.error"></audio>
   </div>
 </template>
 
@@ -435,7 +504,18 @@ onMounted(() => {
         justify-content: space-evenly;
         margin-top: 1rem;
         position: relative;
+        align-items: center;
         mix-blend-mode: difference;
+
+        .theme {
+          position: absolute;
+          right: 16px;
+        }
+
+        .textcolor {
+          position: absolute;
+          left: 16px;
+        }
       }
 
       .progress {
@@ -472,6 +552,8 @@ onMounted(() => {
           color: rgb(255, 255, 255);
           mix-blend-mode: difference;
           z-index: 1;
+          width: 2rem;
+          text-align: center;
         }
       }
 
@@ -480,7 +562,6 @@ onMounted(() => {
         font-size: v-bind("playerConfig.lrcFontSize");
         margin: 2rem 1rem 0 1rem;
         overflow: hidden;
-        mix-blend-mode: difference;
         position: relative;
 
         .lrcLine {
@@ -496,20 +577,19 @@ onMounted(() => {
 
         .lrcBox {
           transform: v-bind("playerConfig.lrcTransformY");
-          transition: transform 0.05s linear;
+          transition: transform 0.1s ease-in-out;
           width: 100%;
           position: absolute;
           top: 50%;
           margin: 0 auto;
+          mix-blend-mode: v-bind("playerConfig.autoColor");
 
           .lrcItem {
             text-align: center;
-            color: #e5ff00;
-            transition: font-size 0.1s linear;
+            transition: font-size 0.1s ease-in-out;
 
             &.select {
               font-size: v-bind("playerConfig.lrcSelectFontSize");
-              color: #00ff4c;
             }
           }
         }

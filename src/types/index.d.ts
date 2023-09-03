@@ -21,3 +21,6 @@ export declare interface ILRC {
   ms: Array<any>;
   [key: string]: any;
 }
+
+// 播放模式
+export declare type playMode = 'default' | 'loop' | 'random'
