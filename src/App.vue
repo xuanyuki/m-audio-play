@@ -70,7 +70,7 @@ const playerConfig = reactive({
   // 进度条百分比
   progressPercent: "0%",
   // 播放模式
-  mode: 'default' as types.playMode
+  mode: 'default' as types.playMode,
 });
 
 // 播放器展示数据
@@ -115,7 +115,6 @@ const playerEvents = reactive({
     setTimeout(() => {
       playerConfig.reAnimation = false;
       playerConfig.play = true
-
     }, 100);
   },
   // 点击进度条设置播放位置
@@ -125,7 +124,7 @@ const playerEvents = reactive({
       message: '进度条拖动功能开发中...',
       grouping: true
     });
-    return
+    return;
     let position = parseFloat(
       (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
     );
@@ -137,8 +136,28 @@ const playerEvents = reactive({
 
   // 切换歌词颜色自适应
   checkoutColorMode() {
-    if (playerConfig.theme !== 'theme-default') return;
-    playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
+    switch (playerConfig.theme) {
+      case 'theme-default':
+        playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
+        break;
+      default:
+        ElMessage.warning('当前主题不支持自适应颜色切换')
+    }
+
+  },
+  // 切换主题映射
+  handleThemeMap: {
+    'theme-default'() {
+      playerConfig.theme = 'theme-light';
+      playerConfig.autoColor = 'default';
+    },
+    'theme-light'() {
+      playerConfig.theme = 'theme-dark';
+      playerConfig.autoColor = 'default';
+    },
+    'theme-dark'() {
+      playerConfig.theme = 'theme-default';
+    }
   },
   // 切换主题
   checkoutTheme() {
@@ -197,9 +216,6 @@ const audioEvents = reactive({
     );
     playerInfo.allTime = timeToString(Math.ceil(playerConfig.allTime));
   },
-  canplaythrough() {
-    loading.value = false
-  },
   error() {
     if (!musicData.value.src) return;
     loading.value = false
@@ -237,37 +253,60 @@ watchEffect(() => {
 // 监听当前播放时间
 watch(
   () => playerConfig.currentTime,
-  (nv) => {
+  (nv, ov) => {
     // 控制当前展示的歌词下标
     if (lrc.value.length < 2) return;
-    let index = 0;
-    for (let i = 0; i < lrc.value.length - 1; i++) {
-      if (Number(lrc.value[i].t) > nv && i === 0) {
-        index = 0;
-        break;
-      } else if (Number(lrc.value[i + 1].t) < nv && i === lrc.value.length - 1) {
-        index = lrc.value.length - 1;
-        break;
-      } else if (
-        Number(lrc.value[i].t) < nv &&
-        Number(lrc.value[i + 1].t) >= nv
-      ) {
-        index = i;
-        break;
+    // for (let i = 0; i < lrc.value.length - 1; i++) {
+    //   if (Number(lrc.value[i].t) > nv && i === 0) {
+    //     index = 0;
+    //     break;
+    //   } else if (Number(lrc.value[i + 1].t) < nv && i === lrc.value.length - 1) {
+    //     index = lrc.value.length - 1;
+    //     break;
+    //   } else if (
+    //     Number(lrc.value[i].t) < nv &&
+    //     Number(lrc.value[i + 1].t) >= nv
+    //   ) {
+    //     index = i;
+    //     break;
+    //   }
+    // }
+    // document.title =
+    //   lrc.value.length === 0
+    //     ? `${musicData.value.title} -- ${musicData.value.author}`
+    //     : lrc.value[index].c;
+    // const lrcSelectDom = document.querySelector(".LRC.select") as HTMLDivElement
+    // const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom.offsetHeight : 20) / 2 * - 1
+    //   }px - ${(Number(playerConfig.lrcFontSize.slice(0, -2)) / 2)}px - ${lrcSelectDom.offsetTop
+    //   }px))`;
+    // playerConfig.lrcTransformY = moveHeight
+    // playerConfig.lrcIndex = index;
+
+    if (playerConfig.lrcIndex < lrc.value.length && nv >= lrc.value[playerConfig.lrcIndex].t && nv > ov) {
+      if (playerConfig.lrcIndex < lrc.value.length - 1 && nv >= lrc.value[playerConfig.lrcIndex+1].t) { 
+        playerConfig.lrcIndex++ 
+      }
+      else if(playerConfig.lrcIndex >= lrc.value.length - 1){
+        playerConfig.lrcIndex=lrc.value.length - 1
       }
     }
-
+    else if (nv < ov) {
+      for (let i = 0, j = 1; i < lrc.value.length - 1; i++, j++) {
+        if (playerConfig.currentTime >= lrc.value[i].t && playerConfig.currentTime < lrc.value[j].t) {
+          playerConfig.lrcIndex = i;
+          break;
+        }
+      }
+    }
     document.title =
       lrc.value.length === 0
         ? `${musicData.value.title} -- ${musicData.value.author}`
-        : lrc.value[index].c;
+        : lrc.value[playerConfig.lrcIndex].c;
     const lrcSelectDom = document.querySelector(".LRC.select") as HTMLDivElement
-
-    const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom.offsetHeight : 20) / 2 * - 1
+    const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom?.offsetHeight : 20) / 2 * - 1
       }px - ${(Number(playerConfig.lrcFontSize.slice(0, -2)) / 2)}px - ${lrcSelectDom.offsetTop
       }px))`;
     playerConfig.lrcTransformY = moveHeight
-    playerConfig.lrcIndex = index;
   }
 );
 
@@ -300,6 +339,7 @@ const getMusic = async () => {
     }
   } catch (e) {
     console.error(e);
+  } finally {
     loading.value = false
   }
 };
@@ -318,6 +358,9 @@ const setLrcFontSize = () => {
     (clientWidth / 100) * 3 > 16 ? (clientWidth / 100) * 3 : 16;
   playerConfig.lrcFontSize = lrcFontSize + "px";
 };
+
+// 设置歌词区域高度
+
 
 // 设置标题logo
 watch(
@@ -395,8 +438,7 @@ onMounted(() => {
     </div>
 
     <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange" @canplaythrough="audioEvents.canplaythrough"
-      @error="audioEvents.error"></audio>
+      @durationchange="audioEvents.durationchange" @error="audioEvents.error"></audio>
   </div>
 </template>
 
@@ -431,6 +473,8 @@ onMounted(() => {
       max-height: calc(100% - 2rem);
       height: calc(100% - 2rem);
       border-radius: 0.5rem;
+      display: flex;
+      flex-direction: column;
 
       .title_box {
         text-align: center;
@@ -558,11 +602,11 @@ onMounted(() => {
       }
 
       .lrc {
-        height: 30vw;
         font-size: v-bind("playerConfig.lrcFontSize");
         margin: 2rem 1rem 0 1rem;
         overflow: hidden;
         position: relative;
+        flex: 1;
 
         .lrcLine {
           position: absolute;
