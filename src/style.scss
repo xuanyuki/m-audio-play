@@ -4,29 +4,6 @@ html {
   padding: 0;
 }
 
-.theme-default {
-  .lrcItem {
-    color: #e5ff00;
-    &.select {
-      color: #00ff4c;
-    }
-  }
-}
-
-.theme-light {
-  .lrcItem {
-    color: black;
-    &.select {
-      color: white;
-    }
-  }
-}
-
-.theme-dark {
-  .lrcItem {
-    color: white;
-    &.select {
-      color: black;
-    }
-  }
+.el-color-picker.el-tooltip__trigger.el-tooltip__trigger{
+  display: none;
 }

@@ -9,8 +9,9 @@ import {
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
+import {themeList} from './config'
 import { lrcToList, timeToString } from "./utils/util";
-import { Play, PauseOne, ReplayMusic, Theme, Translation, Text, Brightness, DarkMode } from "@icon-park/vue-next";
+import { Play, PauseOne, ReplayMusic, Theme, Translation, Text } from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
 
@@ -71,6 +72,8 @@ const playerConfig = reactive({
   progressPercent: "0%",
   // 播放模式
   mode: 'default' as types.playMode,
+  // 当前使用的主题
+  themeIndex: 0,
 });
 
 // 播放器展示数据
@@ -136,43 +139,23 @@ const playerEvents = reactive({
 
   // 切换歌词颜色自适应
   checkoutColorMode() {
-    switch (playerConfig.theme) {
-      case 'theme-default':
-        playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
-        break;
-      default:
-        ElMessage.warning('当前主题不支持自适应颜色切换')
+    if (themeList[playerConfig.themeIndex].useAutoColor) {
+      playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
     }
-
-  },
-  // 切换主题映射
-  handleThemeMap: {
-    'theme-default'() {
-      playerConfig.theme = 'theme-light';
-      playerConfig.autoColor = 'default';
-    },
-    'theme-light'() {
-      playerConfig.theme = 'theme-dark';
-      playerConfig.autoColor = 'default';
-    },
-    'theme-dark'() {
-      playerConfig.theme = 'theme-default';
+    else {
+      ElMessage.warning('当前主题不支持自适应颜色切换')
     }
   },
   // 切换主题
   checkoutTheme() {
-    switch (playerConfig.theme) {
-      case 'theme-default':
-        playerConfig.theme = 'theme-light';
-        playerConfig.autoColor = 'default';
-        break;
-      case 'theme-light':
-        playerConfig.theme = 'theme-dark';
-        playerConfig.autoColor = 'default';
-        break;
-      case 'theme-dark':
-        playerConfig.theme = 'theme-default';
-        break;
+    if (playerConfig.themeIndex === themeList.length - 1) {
+      playerConfig.themeIndex = 0
+    }
+    else {
+      playerConfig.themeIndex++
+    }
+    if (!themeList[playerConfig.themeIndex].useAutoColor) {
+      playerConfig.autoColor = 'default'
     }
   }
 });
@@ -283,11 +266,11 @@ watch(
     // playerConfig.lrcIndex = index;
 
     if (playerConfig.lrcIndex < lrc.value.length && nv >= lrc.value[playerConfig.lrcIndex].t && nv > ov) {
-      if (playerConfig.lrcIndex < lrc.value.length - 1 && nv >= lrc.value[playerConfig.lrcIndex+1].t) { 
-        playerConfig.lrcIndex++ 
+      if (playerConfig.lrcIndex < lrc.value.length - 1 && nv >= lrc.value[playerConfig.lrcIndex + 1].t) {
+        playerConfig.lrcIndex++
       }
-      else if(playerConfig.lrcIndex >= lrc.value.length - 1){
-        playerConfig.lrcIndex=lrc.value.length - 1
+      else if (playerConfig.lrcIndex >= lrc.value.length - 1) {
+        playerConfig.lrcIndex = lrc.value.length - 1
       }
     }
     else if (nv < ov) {
@@ -399,9 +382,7 @@ onMounted(() => {
           <replay-music theme="outline" size="50" fill="#fff" @click="playerEvents.c_replay" />
 
           <div class="theme" @click="playerEvents.checkoutTheme">
-            <theme theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-default'" />
-            <brightness theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-light'" />
-            <dark-mode theme="outline" size="24" fill="#fff" v-show="playerConfig.theme === 'theme-dark'" />
+            <theme theme="outline" size="24" fill="#fff" />
           </div>
 
 
@@ -631,9 +612,11 @@ onMounted(() => {
           .lrcItem {
             text-align: center;
             transition: font-size 0.1s ease-in-out;
+            color: v-bind("themeList[playerConfig.themeIndex].color");
 
             &.select {
               font-size: v-bind("playerConfig.lrcSelectFontSize");
+              color: v-bind("themeList[playerConfig.themeIndex].select");
             }
           }
         }
