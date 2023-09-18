@@ -129,6 +129,12 @@ const playerEvents = reactive({
   },
   // 点击进度条设置播放位置
   setProgress(e: PointerEvent) {
+    ElMessage({
+      type: "warning",
+      message: "进度条拖动功能开发中...",
+      grouping: true,
+    });
+    return;
     let position = parseFloat(
       (e.offsetX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
     );
