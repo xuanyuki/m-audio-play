@@ -141,7 +141,6 @@ const playerEvents = reactive({
     if (position < 0) position = 0;
     else if (position > 1) position = 1;
     const time = Math.floor(playerConfig.allTime * position);
-    console.log("计算时间:", time, " 百分比：", position);
     audio.value!.currentTime = time;
   },
 
