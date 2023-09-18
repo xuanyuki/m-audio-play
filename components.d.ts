@@ -6,8 +6,6 @@
 export {}
 
 declare module 'vue' {
-  export interface GlobalComponents {
-  }
   export interface ComponentCustomProperties {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
