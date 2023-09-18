@@ -9,9 +9,16 @@ import {
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
-import {themeList} from './config'
+import { themeList } from "./config";
 import { lrcToList, timeToString } from "./utils/util";
-import { Play, PauseOne, ReplayMusic, Theme, Translation, Text } from "@icon-park/vue-next";
+import {
+  Play,
+  PauseOne,
+  ReplayMusic,
+  Theme,
+  Translation,
+  Text,
+} from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
 
@@ -48,9 +55,9 @@ const coverAction = ref<"paused" | "running">("running");
 // 控制播放器字段
 const playerConfig = reactive({
   // 主题
-  theme: 'theme-default',
+  theme: "theme-default",
   // 自适应歌词文字颜色
-  autoColor: 'difference',
+  autoColor: "difference",
   // 控制播放
   play: false,
   // 控制是否给封面挂载动画
@@ -71,7 +78,7 @@ const playerConfig = reactive({
   // 进度条百分比
   progressPercent: "0%",
   // 播放模式
-  mode: 'default' as types.playMode,
+  mode: "default" as types.playMode,
   // 当前使用的主题
   themeIndex: 0,
 });
@@ -117,47 +124,51 @@ const playerEvents = reactive({
     playerConfig.reAnimation = true;
     setTimeout(() => {
       playerConfig.reAnimation = false;
-      playerConfig.play = true
+      playerConfig.play = true;
     }, 100);
   },
   // 点击进度条设置播放位置
   setProgress(e: PointerEvent) {
-    ElMessage({
-      type: 'warning',
-      message: '进度条拖动功能开发中...',
-      grouping: true
-    });
-    return;
+    // ElMessage({
+    //   type: "warning",
+    //   message: "进度条拖动功能开发中...",
+    //   grouping: true,
+    // });
+    // return;
     let position = parseFloat(
-      (e.clientX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+      (e.offsetX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
     );
     if (position < 0) position = 0;
     else if (position > 1) position = 1;
     const time = Math.floor(playerConfig.allTime * position);
+    console.log("计算时间:", time, " 百分比：", position);
     audio.value!.currentTime = time;
   },
 
   // 切换歌词颜色自适应
   checkoutColorMode() {
     if (themeList[playerConfig.themeIndex].useAutoColor) {
-      playerConfig.autoColor = playerConfig.autoColor === 'difference' ? 'default' : 'difference'
-    }
-    else {
-      ElMessage.warning('当前主题不支持自适应颜色切换')
+      playerConfig.autoColor =
+        playerConfig.autoColor === "difference" ? "default" : "difference";
+    } else {
+      ElMessage({
+        type: "warning",
+        message: "进度当前主题不支持自适应颜色切换",
+        grouping: true,
+      });
     }
   },
   // 切换主题
   checkoutTheme() {
     if (playerConfig.themeIndex === themeList.length - 1) {
-      playerConfig.themeIndex = 0
-    }
-    else {
-      playerConfig.themeIndex++
+      playerConfig.themeIndex = 0;
+    } else {
+      playerConfig.themeIndex++;
     }
     if (!themeList[playerConfig.themeIndex].useAutoColor) {
-      playerConfig.autoColor = 'default'
+      playerConfig.autoColor = "default";
     }
-  }
+  },
 });
 
 // 播放器原生事件
@@ -167,10 +178,10 @@ const audioEvents = reactive({
     playerConfig.reAnimation = true;
     playerConfig.play = false;
     switch (playerConfig.mode) {
-      case 'loop':
+      case "loop":
         playerEvents.c_replay();
         break;
-      case 'random':
+      case "random":
         getMusic();
         playerEvents.c_replay();
         break;
@@ -201,13 +212,13 @@ const audioEvents = reactive({
   },
   error() {
     if (!musicData.value.src) return;
-    loading.value = false
+    loading.value = false;
     ElMessage({
-      type: 'error',
-      message: '音乐播放失败',
-      grouping: true
-    })
-  }
+      type: "error",
+      message: "音乐播放失败",
+      grouping: true,
+    });
+  },
 });
 
 // 监听控制字段
@@ -230,7 +241,7 @@ watchEffect(() => {
       if (audio.value?.paused) return;
       audio.value?.pause();
     }
-  } catch { }
+  } catch {}
 });
 
 // 监听当前播放时间
@@ -265,17 +276,25 @@ watch(
     // playerConfig.lrcTransformY = moveHeight
     // playerConfig.lrcIndex = index;
 
-    if (playerConfig.lrcIndex < lrc.value.length && nv >= lrc.value[playerConfig.lrcIndex].t && nv > ov) {
-      if (playerConfig.lrcIndex < lrc.value.length - 1 && nv >= lrc.value[playerConfig.lrcIndex + 1].t) {
-        playerConfig.lrcIndex++
+    if (
+      playerConfig.lrcIndex < lrc.value.length &&
+      nv >= lrc.value[playerConfig.lrcIndex].t &&
+      nv > ov
+    ) {
+      if (
+        playerConfig.lrcIndex < lrc.value.length - 1 &&
+        nv >= lrc.value[playerConfig.lrcIndex + 1].t
+      ) {
+        playerConfig.lrcIndex++;
+      } else if (playerConfig.lrcIndex >= lrc.value.length - 1) {
+        playerConfig.lrcIndex = lrc.value.length - 1;
       }
-      else if (playerConfig.lrcIndex >= lrc.value.length - 1) {
-        playerConfig.lrcIndex = lrc.value.length - 1
-      }
-    }
-    else if (nv < ov) {
+    } else if (nv < ov) {
       for (let i = 0, j = 1; i < lrc.value.length - 1; i++, j++) {
-        if (playerConfig.currentTime >= lrc.value[i].t && playerConfig.currentTime < lrc.value[j].t) {
+        if (
+          playerConfig.currentTime >= lrc.value[i].t &&
+          playerConfig.currentTime < lrc.value[j].t
+        ) {
           playerConfig.lrcIndex = i;
           break;
         }
@@ -285,11 +304,15 @@ watch(
       lrc.value.length === 0
         ? `${musicData.value.title} -- ${musicData.value.author}`
         : lrc.value[playerConfig.lrcIndex].c;
-    const lrcSelectDom = document.querySelector(".LRC.select") as HTMLDivElement
-    const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom?.offsetHeight : 20) / 2 * - 1
-      }px - ${(Number(playerConfig.lrcFontSize.slice(0, -2)) / 2)}px - ${lrcSelectDom.offsetTop
-      }px))`;
-    playerConfig.lrcTransformY = moveHeight
+    const lrcSelectDom = document.querySelector(
+      ".LRC.select"
+    ) as HTMLDivElement;
+    const moveHeight = `translateY(calc(${
+      ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 20) / 2) * -1
+    }px - ${Number(playerConfig.lrcFontSize.slice(0, -2)) / 2}px - ${
+      lrcSelectDom.offsetTop
+    }px))`;
+    playerConfig.lrcTransformY = moveHeight;
   }
 );
 
@@ -323,7 +346,7 @@ const getMusic = async () => {
   } catch (e) {
     console.error(e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 };
 
@@ -344,7 +367,6 @@ const setLrcFontSize = () => {
 
 // 设置歌词区域高度
 
-
 // 设置标题logo
 watch(
   () => musicData.value.pic,
@@ -361,36 +383,74 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container" v-loading="loading" :element-loading-text="loadingTips" :class="playerConfig.theme">
+  <div
+    class="container"
+    v-loading="loading"
+    :element-loading-text="loadingTips"
+    :class="playerConfig.theme"
+  >
     <div class="playerBackground">
       <div class="player">
         <!-- 标题 -->
-        <div class="title_box" :class="{ isOverflow: isOverflow }" ref="titleBox">
+        <div
+          class="title_box"
+          :class="{ isOverflow: isOverflow }"
+          ref="titleBox"
+        >
           <div class="title" ref="title">
             {{ `${musicData.title} -- ${musicData.author || "暂无数据"}` }}
           </div>
         </div>
         <!-- 封面 -->
-        <div class="cover" :class="{
-          image: musicData.pic.length > 0,
-          reAnimation: playerConfig.reAnimation,
-        }"></div>
+        <div
+          class="cover"
+          :class="{
+            image: musicData.pic.length > 0,
+            reAnimation: playerConfig.reAnimation,
+          }"
+        ></div>
         <!-- 控制按钮 -->
         <div class="control">
-          <play theme="outline" size="50" fill="#fff" v-if="!playerConfig.play" @click="playerEvents.c_play" />
-          <pause-one theme="outline" size="50" fill="#fff" v-else @click="playerEvents.c_play" />
-          <replay-music theme="outline" size="50" fill="#fff" @click="playerEvents.c_replay" />
+          <play
+            theme="outline"
+            size="50"
+            fill="#fff"
+            v-if="!playerConfig.play"
+            @click="playerEvents.c_play"
+          />
+          <pause-one
+            theme="outline"
+            size="50"
+            fill="#fff"
+            v-else
+            @click="playerEvents.c_play"
+          />
+
+          <replay-music
+            theme="outline"
+            size="50"
+            fill="#fff"
+            @click="playerEvents.c_replay"
+          />
 
           <div class="theme" @click="playerEvents.checkoutTheme">
             <theme theme="outline" size="24" fill="#fff" />
           </div>
 
-
           <div class="textcolor" @click="playerEvents.checkoutColorMode">
-            <translation theme="outline" size="24" fill="#fff" v-show="playerConfig.autoColor === 'difference'" />
-            <Text theme="outline" size="24" fill="#fff" v-show="playerConfig.autoColor === 'default'" />
+            <translation
+              theme="outline"
+              size="24"
+              fill="#fff"
+              v-show="playerConfig.autoColor === 'difference'"
+            />
+            <Text
+              theme="outline"
+              size="24"
+              fill="#fff"
+              v-show="playerConfig.autoColor === 'default'"
+            />
           </div>
-
         </div>
         <!-- 进度条 -->
         <div class="progress">
@@ -408,8 +468,15 @@ onMounted(() => {
         <div class="lrc">
           <div class="lrcLine"></div>
           <div class="lrcBox">
-            <div class="lrcItem LRC" :class="{ select: playerConfig.lrcIndex === index }" v-for="(l, index) in lrc"
-              :key="index" :data-time="l.t" :data-index="index" ref="lrcList">
+            <div
+              class="lrcItem LRC"
+              :class="{ select: playerConfig.lrcIndex === index }"
+              v-for="(l, index) in lrc"
+              :key="index"
+              :data-time="l.t"
+              :data-index="index"
+              ref="lrcList"
+            >
               {{ l.c }}
             </div>
             <div class="lrcItem select" v-show="lrc.length == 0">暂无歌词</div>
@@ -418,8 +485,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange" @error="audioEvents.error"></audio>
+    <audio
+      ref="audio"
+      :src="musicData.url"
+      preload="auto"
+      @ended="audioEvents.ended"
+      @timeupdate="audioEvents.timeupdate"
+      @durationchange="audioEvents.durationchange"
+      @error="audioEvents.error"
+    ></audio>
   </div>
 </template>
 
@@ -561,11 +635,13 @@ onMounted(() => {
           margin: 0 1rem;
 
           .progressActive {
-            background: linear-gradient(to right,
-                rgb(208, 255, 147),
-                rgb(251, 255, 0),
-                rgb(252, 206, 1),
-                rgb(252, 164, 1));
+            background: linear-gradient(
+              to right,
+              rgb(208, 255, 147),
+              rgb(251, 255, 0),
+              rgb(252, 206, 1),
+              rgb(252, 164, 1)
+            );
             border-radius: 5px;
             z-index: 1;
             height: 5px;
