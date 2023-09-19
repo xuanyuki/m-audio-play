@@ -9,8 +9,8 @@ import {
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
-import { themeList } from "./config";
-import { lrcToList, timeToString } from "./utils/util";
+import { themeList, introOptions } from "./config";
+import { lrcToList, timeToString, throttle } from "./utils/util";
 import {
   Play,
   PauseOne,
@@ -21,6 +21,7 @@ import {
   PlayOnce,
   PlayCycle,
   ShuffleOne,
+  Help
 } from "@icon-park/vue-next";
 import introJs from "intro.js";
 import * as types from "./types/index";
@@ -29,6 +30,7 @@ import * as apis from "./api";
 import "element-plus/theme-chalk/el-message.css";
 import "element-plus/theme-chalk/el-badge.css";
 import "intro.js/introjs.css";
+import 'intro.js/themes/introjs-modern.css'
 
 // dom
 const audio = ref<HTMLAudioElement>();
@@ -84,6 +86,8 @@ const playerConfig = reactive({
   mode: "random" as types.playMode,
   // 当前使用的主题
   themeIndex: 0,
+  // 指示进度条是否被拖动
+  isMoveProgress: false
 });
 
 // 播放器展示数据
@@ -216,6 +220,39 @@ const playerEvents = reactive({
         break;
     }
   },
+  // 帮助
+  help() {
+    introJs().setOptions(introOptions).start()
+  },
+  // 开始拖动进度条
+  handleProgressStart(e:TouchEvent) {
+    playerConfig.isMoveProgress = true
+    const moveX = Math.floor(e.targetTouches[0].clientX) - 53
+    let position = parseFloat(
+      (moveX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+    )
+    if (position < 0) position = 0;
+    else if (position > 1) position = 1;
+    const time = Math.floor(playerConfig.allTime * position);
+    audio.value!.currentTime = time;
+    lrcMove();
+  },
+  // 结束拖动
+  handleProgressEnd() {
+    playerConfig.isMoveProgress = false
+  },
+  // 进度条拖动
+  progressMove: throttle((e: TouchEvent) => {
+    const moveX = Math.floor(e.targetTouches[0].clientX) - 53
+    let position = parseFloat(
+      (moveX / (e.currentTarget as HTMLDivElement).offsetWidth).toFixed(4)
+    )
+    if (position < 0) position = 0;
+    else if (position > 1) position = 1;
+    const time = Math.floor(playerConfig.allTime * position);
+    audio.value!.currentTime = time;
+    lrcMove();
+  })
 });
 
 // 播放器原生事件
@@ -290,7 +327,7 @@ watchEffect(() => {
       if (audio.value?.paused) return;
       audio.value?.pause();
     }
-  } catch {}
+  } catch { }
 });
 
 // 监听当前播放时间
@@ -336,9 +373,8 @@ watch(
       const lrcSelectDom = lrcList.value.find((item) =>
         item.className.includes("select")
       );
-      const moveHeight = `translateY(calc(${
-        ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 16) / 2) * -1
-      }px - ${lrcSelectDom?.offsetTop}px))`;
+      const moveHeight = `translateY(calc(${((lrcSelectDom ? lrcSelectDom?.offsetHeight : 16) / 2) * -1
+        }px - ${lrcSelectDom?.offsetTop}px))`;
       playerConfig.lrcTransformY = moveHeight;
     });
   }
@@ -378,8 +414,6 @@ const getMusic = async () => {
   }
 };
 
-// 设置歌词区域高度
-
 // 设置标题logo
 watch(
   () => musicData.value.pic,
@@ -389,106 +423,62 @@ watch(
   }
 );
 
+const progressBox=ref<HTMLDivElement>()
+
 onMounted(() => {
   getMusic();
+  nextTick(()=>{
+    progressBox.value?.addEventListener('touchmove',(e:TouchEvent)=>{
+      e.preventDefault()
+    })
+  })
 });
 </script>
 
 <template>
-  <div
-    class="container"
-    v-loading="loading"
-    :element-loading-text="loadingTips"
-    :class="playerConfig.theme"
-  >
+  <div class="container" v-loading="loading" :element-loading-text="loadingTips" :class="playerConfig.theme">
     <div class="playerBackground">
       <div class="player">
         <!-- 标题 -->
-        <div
-          class="title_box"
-          :class="{ isOverflow: isOverflow }"
-          ref="titleBox"
-        >
+        <div class="title_box" :class="{ isOverflow: isOverflow }" ref="titleBox">
           <div class="title" ref="title">
             {{ `${musicData.title} -- ${musicData.author || "暂无数据"}` }}
           </div>
         </div>
         <!-- 封面 -->
-        <div
-          class="cover"
-          :class="{
-            image: musicData.pic.length > 0,
-            reAnimation: playerConfig.reAnimation,
-          }"
-        ></div>
+        <div class="cover" :class="{
+          image: musicData.pic.length > 0,
+          reAnimation: playerConfig.reAnimation,
+        }"></div>
         <!-- 主控 -->
-        <div class="control">
+        <div class="control" id="control">
           <!-- 播放 -->
-          <play
-            theme="outline"
-            size="50"
-            fill="#fff"
-            v-if="!playerConfig.play"
-            @click="playerEvents.c_play"
-          />
+          <play theme="outline" size="50" fill="#fff" v-if="!playerConfig.play" @click="playerEvents.c_play" />
           <!-- 暂停 -->
-          <pause-one
-            theme="outline"
-            size="50"
-            fill="#fff"
-            v-else
-            @click="playerEvents.c_play"
-          />
+          <pause-one theme="outline" size="50" fill="#fff" v-else @click="playerEvents.c_play" />
           <!-- 重播 -->
-          <replay-music
-            theme="outline"
-            size="50"
-            fill="#fff"
-            @click="playerEvents.c_replay"
-          />
+          <replay-music theme="outline" size="50" fill="#fff" @click="playerEvents.c_replay" />
         </div>
 
         <!-- 次要控制 -->
-        <div class="control_second">
+        <div class="control_second" id="toollist">
           <!-- 主题 -->
-          <div class="theme" @click="playerEvents.checkoutTheme">
+          <div class="theme" id="theme" @click="playerEvents.checkoutTheme">
             <theme theme="outline" size="20" fill="#fff" />
           </div>
           <!-- 文字自适应 -->
-          <div class="textcolor" @click="playerEvents.checkoutColorMode">
-            <translation
-              theme="outline"
-              size="20"
-              fill="#fff"
-              v-show="playerConfig.autoColor === 'difference'"
-            />
-            <Text
-              theme="outline"
-              size="20"
-              fill="#fff"
-              v-show="playerConfig.autoColor === 'default'"
-            />
+          <div class="textcolor" id="textcolor" @click="playerEvents.checkoutColorMode">
+            <translation theme="outline" size="20" fill="#fff" v-show="playerConfig.autoColor === 'difference'" />
+            <Text theme="outline" size="20" fill="#fff" v-show="playerConfig.autoColor === 'default'" />
           </div>
           <!-- 播放模式 -->
-          <div class="play_mode" @click="playerEvents.checkoutMode">
-            <play-once
-              theme="outline"
-              size="20"
-              fill="#fff"
-              v-show="playerConfig.mode === 'default'"
-            />
-            <play-cycle
-              theme="outline"
-              size="20"
-              fill="#fff"
-              v-show="playerConfig.mode === 'loop'"
-            />
-            <shuffle-one
-              theme="outline"
-              size="20"
-              fill="#fff"
-              v-show="playerConfig.mode === 'random'"
-            />
+          <div class="play_mode" id="mode" @click="playerEvents.checkoutMode">
+            <play-once theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'default'" />
+            <play-cycle theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'loop'" />
+            <shuffle-one theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'random'" />
+          </div>
+          <div class="help" @click="playerEvents.help">
+            <help theme="outline" size="20" fill="#fff" />
           </div>
         </div>
 
@@ -497,7 +487,8 @@ onMounted(() => {
           <div class="progressTime">
             {{ playerInfo.currectTime }}
           </div>
-          <div class="progressBox" @click="playerEvents.setProgress">
+          <div class="progressBox" @click="playerEvents.setProgress" @touchstart="playerEvents.handleProgressStart"
+            @touchend="playerEvents.handleProgressEnd" @touchmove="playerEvents.progressMove" ref="progressBox">
             <div class="progressActive"></div>
           </div>
           <div class="progressTime">
@@ -508,17 +499,9 @@ onMounted(() => {
         <div class="lrc">
           <div class="lrcLine"></div>
           <div class="lrcBox">
-            <div
-              class="lrcItem LRC"
-              :class="{
-                select: playerConfig.lrcIndex === index,
-              }"
-              v-for="(l, index) in lrc"
-              :key="index"
-              :data-time="l.t"
-              :data-index="index"
-              ref="lrcList"
-            >
+            <div class="lrcItem LRC" :class="{
+              select: playerConfig.lrcIndex === index,
+            }" v-for="(l, index) in lrc" :key="index" :data-time="l.t" :data-index="index" ref="lrcList">
               {{ l.c }}
             </div>
             <div class="lrcItem select" v-show="lrc.length == 0">暂无歌词</div>
@@ -527,15 +510,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <audio
-      ref="audio"
-      :src="musicData.url"
-      preload="auto"
-      @ended="audioEvents.ended"
-      @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange"
-      @error="audioEvents.error"
-    ></audio>
+    <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
+      @durationchange="audioEvents.durationchange" @error="audioEvents.error"></audio>
   </div>
 </template>
 
@@ -672,13 +648,11 @@ onMounted(() => {
           z-index: 1;
 
           .progressActive {
-            background: linear-gradient(
-              to right,
-              rgb(208, 255, 147),
-              rgb(251, 255, 0),
-              rgb(252, 206, 1),
-              rgb(252, 164, 1)
-            );
+            background: linear-gradient(to right,
+                rgb(208, 255, 147),
+                rgb(251, 255, 0),
+                rgb(252, 206, 1),
+                rgb(252, 164, 1));
             border-radius: 5px;
             z-index: 1;
             height: 5px;
