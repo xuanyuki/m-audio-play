@@ -18,6 +18,9 @@ import {
   Theme,
   Translation,
   Text,
+  PlayOnce,
+  PlayCycle,
+  ShuffleOne,
 } from "@icon-park/vue-next";
 import * as types from "./types/index";
 import * as apis from "./api";
@@ -29,6 +32,7 @@ import "element-plus/theme-chalk/el-badge.css";
 const audio = ref<HTMLAudioElement>();
 const titleBox = ref<HTMLDivElement>();
 const title = ref<HTMLDivElement>();
+const lrcList = ref<HTMLDivElement[]>([]);
 
 // 加载
 const loading = ref<boolean>(true);
@@ -69,16 +73,13 @@ const playerConfig = reactive({
   // 展示的歌词下标
   lrcIndex: 0,
   // 控制歌词滚动
-  lrcTransformY: "translateY(0px)",
-  // 歌词字体控制
-  lrcFontSize: "16px",
-  lrcSelectFontSize: "20px",
+  lrcTransformY: "translateY(-8px)",
   // 页面宽度
   clientWidth: 0,
   // 进度条百分比
   progressPercent: "0%",
   // 播放模式
-  mode: "default" as types.playMode,
+  mode: "random" as types.playMode,
   // 当前使用的主题
   themeIndex: 0,
 });
@@ -109,6 +110,22 @@ const titleAnimationTime = computed(() => {
   return `${Math.floor(Math.log(0.7 * moveWidth + 1))}s`;
 });
 
+// 设置歌词到指定位置
+function lrcMove() {
+  const index = lrc.value.findIndex(
+    (item) => Number(item.t) > playerConfig.currentTime
+  );
+  if (index === -1) {
+    if (playerConfig.currentTime > Number(lrc.value[0].t)) {
+      playerConfig.lrcIndex = lrc.value.length - 1;
+    } else {
+      playerConfig.lrcIndex = 0;
+    }
+  } else {
+    playerConfig.lrcIndex = index;
+  }
+}
+
 // 播放器事件
 const playerEvents = reactive({
   // 控制播放|暂停
@@ -121,11 +138,12 @@ const playerEvents = reactive({
       playerConfig.play = false;
     }
     audio.value!.currentTime = 0;
+    playerConfig.lrcIndex = 0;
     playerConfig.reAnimation = true;
     setTimeout(() => {
       playerConfig.reAnimation = false;
       playerConfig.play = true;
-    }, 100);
+    }, 200);
   },
   // 点击进度条设置播放位置
   setProgress(e: PointerEvent) {
@@ -136,6 +154,7 @@ const playerEvents = reactive({
     else if (position > 1) position = 1;
     const time = Math.floor(playerConfig.allTime * position);
     audio.value!.currentTime = time;
+    lrcMove();
   },
 
   // 切换歌词颜色自适应
@@ -143,6 +162,14 @@ const playerEvents = reactive({
     if (themeList[playerConfig.themeIndex].useAutoColor) {
       playerConfig.autoColor =
         playerConfig.autoColor === "difference" ? "default" : "difference";
+      ElMessage({
+        type: "info",
+        message:
+          playerConfig.autoColor === "difference"
+            ? "启用歌词颜色自适应"
+            : "取消歌词颜色自适应",
+        grouping: true,
+      });
     } else {
       ElMessage.warning("当前主题不支持自适应颜色切换");
     }
@@ -158,6 +185,35 @@ const playerEvents = reactive({
       playerConfig.autoColor = "default";
     }
   },
+  // 切换播放模式
+  checkoutMode() {
+    switch (playerConfig.mode) {
+      case "default":
+        playerConfig.mode = "loop";
+        ElMessage({
+          message: "播放模式切换为 循环播放",
+          type: "info",
+          grouping: true,
+        });
+        break;
+      case "loop":
+        playerConfig.mode = "random";
+        ElMessage({
+          message: "播放模式切换为 随机播放",
+          type: "info",
+          grouping: true,
+        });
+        break;
+      case "random":
+        playerConfig.mode = "default";
+        ElMessage({
+          message: "播放模式切换为 默认",
+          type: "info",
+          grouping: true,
+        });
+        break;
+    }
+  },
 });
 
 // 播放器原生事件
@@ -169,9 +225,11 @@ const audioEvents = reactive({
     switch (playerConfig.mode) {
       case "loop":
         playerEvents.c_replay();
+        playerConfig.lrcIndex = 0;
         break;
       case "random":
         getMusic();
+        playerConfig.lrcIndex = 0;
         playerEvents.c_replay();
         break;
       default:
@@ -236,71 +294,44 @@ watchEffect(() => {
 // 监听当前播放时间
 watch(
   () => playerConfig.currentTime,
-  (nv, ov) => {
+  () => {
     // 控制当前展示的歌词下标
     if (lrc.value.length < 2) return;
-    // for (let i = 0; i < lrc.value.length - 1; i++) {
-    //   if (Number(lrc.value[i].t) > nv && i === 0) {
-    //     index = 0;
-    //     break;
-    //   } else if (Number(lrc.value[i + 1].t) < nv && i === lrc.value.length - 1) {
-    //     index = lrc.value.length - 1;
-    //     break;
-    //   } else if (
-    //     Number(lrc.value[i].t) < nv &&
-    //     Number(lrc.value[i + 1].t) >= nv
-    //   ) {
-    //     index = i;
-    //     break;
-    //   }
-    // }
-    // document.title =
-    //   lrc.value.length === 0
-    //     ? `${musicData.value.title} -- ${musicData.value.author}`
-    //     : lrc.value[index].c;
-    // const lrcSelectDom = document.querySelector(".LRC.select") as HTMLDivElement
-    // const moveHeight = `translateY(calc(${(lrcSelectDom ? lrcSelectDom.offsetHeight : 20) / 2 * - 1
-    //   }px - ${(Number(playerConfig.lrcFontSize.slice(0, -2)) / 2)}px - ${lrcSelectDom.offsetTop
-    //   }px))`;
-    // playerConfig.lrcTransformY = moveHeight
-    // playerConfig.lrcIndex = index;
-
-    if (
-      playerConfig.lrcIndex < lrc.value.length &&
-      nv >= lrc.value[playerConfig.lrcIndex].t &&
-      nv > ov
+    let index = playerConfig.lrcIndex;
+    for (
+      let i = 0, j = 1;
+      i < lrc.value.length - 1, j < lrc.value.length;
+      i++, j++
     ) {
       if (
-        playerConfig.lrcIndex < lrc.value.length - 1 &&
-        nv >= lrc.value[playerConfig.lrcIndex + 1].t
+        playerConfig.currentTime >= lrc.value[i].t &&
+        playerConfig.currentTime < lrc.value[j].t
       ) {
-        playerConfig.lrcIndex++;
-      } else if (playerConfig.lrcIndex >= lrc.value.length - 1) {
-        playerConfig.lrcIndex = lrc.value.length - 1;
+        index = i;
+        break;
       }
-    } else if (nv < ov) {
-      for (let i = 0, j = 1; i < lrc.value.length - 1; i++, j++) {
-        if (
-          playerConfig.currentTime >= lrc.value[i].t &&
-          playerConfig.currentTime < lrc.value[j].t
-        ) {
-          playerConfig.lrcIndex = i;
-          break;
-        }
-      }
+      index = j;
     }
+    if (index !== playerConfig.lrcIndex) {
+      playerConfig.lrcIndex = index;
+    }
+  }
+);
+
+// 监听歌词下标
+watch(
+  () => playerConfig.lrcIndex,
+  (nv) => {
     document.title =
       lrc.value.length === 0
         ? `${musicData.value.title} -- ${musicData.value.author}`
-        : lrc.value[playerConfig.lrcIndex].c;
-    const lrcSelectDom = document.querySelector(
-      ".LRC.select"
-    ) as HTMLDivElement;
+        : lrc.value[nv].c;
+    const lrcSelectDom = lrcList.value.find((item) =>
+      item.className.includes("select")
+    );
     const moveHeight = `translateY(calc(${
-      ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 20) / 2) * -1
-    }px - ${Number(playerConfig.lrcFontSize.slice(0, -2)) / 2}px - ${
-      lrcSelectDom.offsetTop
-    }px))`;
+      ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 16) / 2) * -1
+    }px - 24px - ${lrcSelectDom?.offsetTop || 0}px))`;
     playerConfig.lrcTransformY = moveHeight;
   }
 );
@@ -339,21 +370,6 @@ const getMusic = async () => {
   }
 };
 
-// 设置歌词文字大小
-const setLrcFontSize = () => {
-  const clientWidth = document.body.clientWidth;
-  playerConfig.clientWidth = clientWidth;
-
-  // 设置当前歌词文字大小
-  const lrcSelectFontSize =
-    (clientWidth / 100) * 3 > 16 ? (clientWidth / 100) * 3.5 : 18;
-  playerConfig.lrcSelectFontSize = lrcSelectFontSize + "px";
-  // 设置歌词默认文字大小
-  const lrcFontSize =
-    (clientWidth / 100) * 3 > 16 ? (clientWidth / 100) * 3 : 16;
-  playerConfig.lrcFontSize = lrcFontSize + "px";
-};
-
 // 设置歌词区域高度
 
 // 设置标题logo
@@ -367,7 +383,6 @@ watch(
 
 onMounted(() => {
   getMusic();
-  setLrcFontSize();
 });
 </script>
 
@@ -398,8 +413,9 @@ onMounted(() => {
             reAnimation: playerConfig.reAnimation,
           }"
         ></div>
-        <!-- 控制按钮 -->
+        <!-- 主控 -->
         <div class="control">
+          <!-- 播放 -->
           <play
             theme="outline"
             size="50"
@@ -407,6 +423,7 @@ onMounted(() => {
             v-if="!playerConfig.play"
             @click="playerEvents.c_play"
           />
+          <!-- 暂停 -->
           <pause-one
             theme="outline"
             size="50"
@@ -414,32 +431,59 @@ onMounted(() => {
             v-else
             @click="playerEvents.c_play"
           />
+          <!-- 重播 -->
           <replay-music
             theme="outline"
             size="50"
             fill="#fff"
             @click="playerEvents.c_replay"
           />
+        </div>
 
+        <!-- 次要控制 -->
+        <div class="control_second">
+          <!-- 主题 -->
           <div class="theme" @click="playerEvents.checkoutTheme">
-            <theme theme="outline" size="24" fill="#fff" />
+            <theme theme="outline" size="20" fill="#fff" />
           </div>
-
+          <!-- 文字自适应 -->
           <div class="textcolor" @click="playerEvents.checkoutColorMode">
             <translation
               theme="outline"
-              size="24"
+              size="20"
               fill="#fff"
               v-show="playerConfig.autoColor === 'difference'"
             />
             <Text
               theme="outline"
-              size="24"
+              size="20"
               fill="#fff"
               v-show="playerConfig.autoColor === 'default'"
             />
           </div>
+          <!-- 播放模式 -->
+          <div class="play_mode" @click="playerEvents.checkoutMode">
+            <play-once
+              theme="outline"
+              size="20"
+              fill="#fff"
+              v-show="playerConfig.mode === 'default'"
+            />
+            <play-cycle
+              theme="outline"
+              size="20"
+              fill="#fff"
+              v-show="playerConfig.mode === 'loop'"
+            />
+            <shuffle-one
+              theme="outline"
+              size="20"
+              fill="#fff"
+              v-show="playerConfig.mode === 'random'"
+            />
+          </div>
         </div>
+
         <!-- 进度条 -->
         <div class="progress">
           <div class="progressTime">
@@ -458,7 +502,9 @@ onMounted(() => {
           <div class="lrcBox">
             <div
               class="lrcItem LRC"
-              :class="{ select: playerConfig.lrcIndex === index }"
+              :class="{
+                select: playerConfig.lrcIndex === index,
+              }"
               v-for="(l, index) in lrc"
               :key="index"
               :data-time="l.t"
@@ -589,28 +635,24 @@ onMounted(() => {
       .control {
         display: flex;
         justify-content: space-evenly;
-        margin-top: 1rem;
-        position: relative;
+        margin-top: 16px;
         align-items: center;
         mix-blend-mode: difference;
+      }
 
-        .theme {
-          position: absolute;
-          right: 16px;
-        }
-
-        .textcolor {
-          position: absolute;
-          left: 16px;
-        }
+      .control_second {
+        display: flex;
+        justify-content: space-evenly;
+        margin-top: 16px;
+        align-items: center;
+        mix-blend-mode: difference;
       }
 
       .progress {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin: 1rem auto 0 auto;
-        width: 93%;
+        margin-top: 1rem;
 
         .progressBox {
           flex-grow: 1;
@@ -620,7 +662,6 @@ onMounted(() => {
           overflow: hidden;
           height: 5px;
           z-index: 1;
-          margin: 0 1rem;
 
           .progressActive {
             background: linear-gradient(
@@ -641,17 +682,19 @@ onMounted(() => {
           color: rgb(255, 255, 255);
           mix-blend-mode: difference;
           z-index: 1;
-          width: 2rem;
           text-align: center;
+          margin: 0 10px;
+          font-size: 12px;
+          width: 32px;
         }
       }
 
       .lrc {
-        font-size: v-bind("playerConfig.lrcFontSize");
-        margin: 2rem 1rem 0 1rem;
+        margin: 14px 12px 0 12px;
         overflow: hidden;
         position: relative;
         flex: 1;
+        font-size: 16px;
 
         .lrcLine {
           position: absolute;
@@ -666,20 +709,21 @@ onMounted(() => {
 
         .lrcBox {
           transform: v-bind("playerConfig.lrcTransformY");
-          transition: transform 0.1s ease-in-out;
           width: 100%;
           position: absolute;
           top: 50%;
+          transition: all 0.1s linear;
           margin: 0 auto;
           mix-blend-mode: v-bind("playerConfig.autoColor");
 
           .lrcItem {
             text-align: center;
-            transition: font-size 0.1s ease-in-out;
+            transition: all 0.1s linear;
+            font-weight: 100;
             color: v-bind("themeList[playerConfig.themeIndex].color");
 
             &.select {
-              font-size: v-bind("playerConfig.lrcSelectFontSize");
+              font-weight: 900;
               color: v-bind("themeList[playerConfig.themeIndex].select");
             }
           }
