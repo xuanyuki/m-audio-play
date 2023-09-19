@@ -326,13 +326,15 @@ watch(
       lrc.value.length === 0
         ? `${musicData.value.title} -- ${musicData.value.author}`
         : lrc.value[nv].c;
-    const lrcSelectDom = lrcList.value.find((item) =>
-      item.className.includes("select")
-    );
-    const moveHeight = `translateY(calc(${
-      ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 16) / 2) * -1
-    }px - 24px - ${lrcSelectDom?.offsetTop || 0}px))`;
-    playerConfig.lrcTransformY = moveHeight;
+    nextTick(() => {
+      const lrcSelectDom = lrcList.value.find((item) =>
+        item.className.includes("select")
+      );
+      const moveHeight = `translateY(calc(${
+        ((lrcSelectDom ? lrcSelectDom?.offsetHeight : 16) / 2) * -1
+      }px - ${lrcSelectDom?.offsetTop}px))`;
+      playerConfig.lrcTransformY = moveHeight;
+    });
   }
 );
 
