@@ -12,6 +12,7 @@
     "@icon-park/vue-next": "^1.4.2",
     "axios": "^1.4.0",
     "element-plus": "^2.3.9",
+    "intro.js": "^7.2.0",
     "sass": "^1.66.1",
     "scss": "^0.2.4",
     "vue": "^3.3.4"

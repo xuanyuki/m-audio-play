@@ -22,11 +22,13 @@ import {
   PlayCycle,
   ShuffleOne,
 } from "@icon-park/vue-next";
+import introJs from "intro.js";
 import * as types from "./types/index";
 import * as apis from "./api";
 
 import "element-plus/theme-chalk/el-message.css";
 import "element-plus/theme-chalk/el-badge.css";
+import "intro.js/introjs.css";
 
 // dom
 const audio = ref<HTMLAudioElement>();
@@ -296,7 +298,11 @@ watch(
   () => playerConfig.currentTime,
   () => {
     // 控制当前展示的歌词下标
-    if (lrc.value.length < 2) return;
+    if (lrc.value.length < 2) {
+      // 歌词列表过短则判断为无歌词
+      playerConfig.lrcIndex = 0;
+      return;
+    }
     let index = playerConfig.lrcIndex;
     for (
       let i = 0, j = 1;
