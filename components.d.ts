@@ -6,6 +6,10 @@
 export {}
 
 declare module 'vue' {
+  export interface GlobalComponents {
+    ElDialog: typeof import('element-plus/es')['ElDialog']
+    ElSwitch: typeof import('element-plus/es')['ElSwitch']
+  }
   export interface ComponentCustomProperties {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }

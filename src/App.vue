@@ -8,7 +8,7 @@ import {
   watch,
   watchEffect,
 } from "vue";
-import { ElMessage, ElDialog, ElSwitch } from "element-plus";
+import { ElMessage } from "element-plus";
 import { themeList, introOptions } from "./config";
 import { lrcToList, timeToString, throttle, systemConfig } from "./utils/util";
 import { ISystemEvent } from './types'
@@ -33,8 +33,6 @@ import * as apis from "./api";
 
 import "element-plus/theme-chalk/el-message.css";
 import "element-plus/theme-chalk/el-badge.css";
-import "element-plus/theme-chalk/el-dialog.css";
-import "element-plus/theme-chalk/el-switch.css";
 import "intro.js/introjs.css";
 import 'intro.js/themes/introjs-modern.css'
 
