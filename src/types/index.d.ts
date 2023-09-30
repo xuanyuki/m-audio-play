@@ -18,9 +18,20 @@ export declare interface ILRC {
   al: string;
   by: string;
   offset: number;
-  ms: Array<any>;
+  ms: any[];
   [key: string]: any;
 }
 
 // 播放模式
 export declare type playMode = 'default' | 'loop' | 'random'
+
+// 系统设置
+export declare type ISystemSet={
+  title:string,
+  event?:string|function,
+  target:string,
+  action?:string|number|boolean,
+  inactive?:string|number|boolean,
+  activeText?:string,
+  inactiveText?:string
+}[]

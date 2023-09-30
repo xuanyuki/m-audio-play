@@ -64,6 +64,10 @@ export const introOptions: Partial<Options>={
       element:'#mode',
       intro:'这里用以切换播放模式',
       position:'top'
+    },{
+      element:'#set',
+      intro:'这里可以打开设置窗口',
+      position:'top'
     }
   ]
 }

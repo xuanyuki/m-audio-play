@@ -1,4 +1,6 @@
+import { ref } from "vue";
 import * as types from "../types/index";
+import { IMusicData, ISystemSet } from "../types/index";
 
 /**
  * 将秒转为时间 格式00:00
@@ -82,4 +84,46 @@ export function throttle(fn: Function, interval: number = 50) {
   // 返回_throttle函数
   return _throttle
 }
+
+// 系统设置列表
+export const systemConfig = ref<ISystemSet>([
+  {
+    title: '保存设置',
+    target: 'saveConfig',
+    event: 'checkoutSave'
+  },
+  {
+    title: '自动歌词颜色',
+    target: 'autoColor',
+    action: 'difference',
+    inactive: 'default'
+  }, {
+    title: '封面样式',
+    target: 'cover',
+    action: 'square',
+    inactive: 'round',
+    activeText: '方形',
+    inactiveText: '圆形'
+  }, {
+    title: '网页标题',
+    target: 'titleIsLrc',
+    activeText: '歌词',
+    inactiveText: '歌名',
+    event(
+      context: {
+        playerConfig: { [key: string]: any },
+        lrc: any[],
+        musicData: IMusicData
+      }
+    ) {
+      const { playerConfig, lrc, musicData } = context
+      if (playerConfig.titleIsLrc && lrc.length > 0) {
+        document.title = lrc[playerConfig.lrcIndex].c
+      }
+      else {
+        document.title = `${musicData.title} -- ${musicData.author}`
+      }
+    }
+  }
+])
 

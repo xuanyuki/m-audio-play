@@ -8,9 +8,9 @@ import {
   watch,
   watchEffect,
 } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElDialog, ElSwitch } from "element-plus";
 import { themeList, introOptions } from "./config";
-import { lrcToList, timeToString, throttle } from "./utils/util";
+import { lrcToList, timeToString, throttle, systemConfig } from "./utils/util";
 import {
   Play,
   PauseOne,
@@ -22,14 +22,18 @@ import {
   PlayCycle,
   ShuffleOne,
   Help,
-  SwitchThemes
+  SwitchThemes,
+  SettingConfig
 } from "@icon-park/vue-next";
+
 import introJs from "intro.js";
 import * as types from "./types/index";
 import * as apis from "./api";
 
 import "element-plus/theme-chalk/el-message.css";
 import "element-plus/theme-chalk/el-badge.css";
+import "element-plus/theme-chalk/el-dialog.css";
+import "element-plus/theme-chalk/el-switch.css";
 import "intro.js/introjs.css";
 import 'intro.js/themes/introjs-modern.css'
 
@@ -90,7 +94,13 @@ const playerConfig = reactive({
   // 指示进度条是否被拖动
   isMoveProgress: false,
   // 指示封面样式
-  cover: 'round'
+  cover: 'round',
+  // 打开设置
+  showSet: false,
+  // 网页标题是否使用歌词
+  titleIsLrc: true,
+  // 保存设置
+  saveConfig: false
 });
 
 // 播放器展示数据
@@ -265,10 +275,26 @@ const playerEvents = reactive({
       case 'square':
         playerConfig.cover = 'round'
         break;
-
+    }
+  },
+  // 保存设置切换
+  checkoutSave() {
+    if (playerConfig.saveConfig) {
+      watchSaveChange = watch(() => playerConfig, (nv) => {
+        const { saveConfig, autoColor, cover, titleIsLrc } = nv
+        localStorage.setItem("config", JSON.stringify({ saveConfig, autoColor, cover, titleIsLrc }))
+      }, {
+        deep: true,
+        immediate: true
+      })
+    } else {
+      watchSaveChange();
+      localStorage.removeItem('config')
     }
   }
 });
+
+let watchSaveChange: any = null
 
 // 播放器原生事件
 const audioEvents = reactive({
@@ -286,7 +312,6 @@ const audioEvents = reactive({
       case "random":
         getMusic();
         playerConfig.lrcIndex = 0;
-        audio.value?.load()
         playerEvents.c_replay();
         break;
       default:
@@ -393,10 +418,11 @@ watch(
 watch(
   () => playerConfig.lrcIndex,
   (nv) => {
-    document.title =
-      lrc.value.length === 0
-        ? `${musicData.value.title} -- ${musicData.value.author}`
-        : lrc.value[nv].c;
+    let documentTitle = `${musicData.value.title} -- ${musicData.value.author}`
+    if (lrc.value.length !== 0 && playerConfig.titleIsLrc) {
+      documentTitle = lrc.value[nv].c
+    }
+    document.title = documentTitle;
     nextTick(() => {
       const lrcSelectDom = lrcList.value.find((item) =>
         item.className.includes("select")
@@ -461,6 +487,7 @@ onMounted(() => {
     })
   })
   audio.value?.pause()
+  Object.assign(playerConfig, JSON.parse(localStorage.getItem('config') || '{}'))
 });
 </script>
 
@@ -514,6 +541,10 @@ onMounted(() => {
             <play-cycle theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'loop'" />
             <shuffle-one theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'random'" />
           </div>
+          <!-- 设置 -->
+          <div class="set" id="set" @click="playerConfig.showSet = true">
+            <setting-config theme="outline" size="20" fill="#fff" />
+          </div>
           <!-- 帮助 -->
           <div class="help" @click="playerEvents.help">
             <help theme="outline" size="20" fill="#fff" />
@@ -533,6 +564,8 @@ onMounted(() => {
             {{ playerInfo.allTime }}
           </div>
         </div>
+
+
         <!-- 歌词 -->
         <div class="lrc">
           <div class="lrcLine"></div>
@@ -545,10 +578,23 @@ onMounted(() => {
             <div class="lrcItem select" v-show="lrc.length == 0">暂无歌词</div>
           </div>
         </div>
+
+        <!-- 设置 -->
+        <ElDialog v-model="playerConfig.showSet" fullscreen title="设置" center>
+          <div class="set_form">
+            <div class="set_item" v-for="item, index in systemConfig" :key="index">
+              <div class="set_text">{{ item.title }}：</div>
+              <el-switch v-model="(playerConfig as any)[item.target]" :active-value="item.action || true"
+                :inactive-value="item.inactive || false" inline-prompt :active-text="item.activeText"
+                :inactive-text="item.inactiveText" @change="()=>item.event&&item.event({playerConfig,lrc,musicData})" />
+            </div>
+          </div>
+        </ElDialog>
       </div>
       <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended"
         @timeupdate="audioEvents.timeupdate" @durationchange="audioEvents.durationchange" @error="audioEvents.error"
         @waiting="audioEvents.waiting" @canplay="audioEvents.canplay"></audio>
+
     </div>
   </div>
 </template>
@@ -762,6 +808,26 @@ onMounted(() => {
           }
         }
       }
+    }
+  }
+}
+
+.set_form {
+  border-top: 2px solid #ccc;
+  border-bottom: 2px solid #ccc;
+
+  .set_item {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding: 4px 0;
+
+    &:last-child {
+      border: none;
+    }
+
+    .set_text {
+      font-size: 14px;
     }
   }
 }
