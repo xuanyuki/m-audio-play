@@ -47,11 +47,15 @@ export const introOptions: Partial<Options>={
       element:'#toollist',
       intro:'这里是工具列表，可以进行一些“小”操作',
       position: 'top'
+    },
+    {
+      element:'#checkoutCover',
+      intro:'这里切换封面样式',
+      position:'top'
     },{
       element:'#theme',
       intro:'这里可以切换歌词色彩主题',
       position:'top'
-
     },{
       element:'#textcolor',
       intro:'这里可以开关歌词色彩自适应',

@@ -21,7 +21,8 @@ import {
   PlayOnce,
   PlayCycle,
   ShuffleOne,
-  Help
+  Help,
+  SwitchThemes
 } from "@icon-park/vue-next";
 import introJs from "intro.js";
 import * as types from "./types/index";
@@ -87,7 +88,9 @@ const playerConfig = reactive({
   // 当前使用的主题
   themeIndex: 0,
   // 指示进度条是否被拖动
-  isMoveProgress: false
+  isMoveProgress: false,
+  // 指示封面样式
+  cover: 'round'
 });
 
 // 播放器展示数据
@@ -225,7 +228,7 @@ const playerEvents = reactive({
     introJs().setOptions(introOptions).start()
   },
   // 开始拖动进度条
-  handleProgressStart(e:TouchEvent) {
+  handleProgressStart(e: TouchEvent) {
     playerConfig.isMoveProgress = true
     const moveX = Math.floor(e.targetTouches[0].clientX) - 53
     let position = parseFloat(
@@ -252,7 +255,19 @@ const playerEvents = reactive({
     const time = Math.floor(playerConfig.allTime * position);
     audio.value!.currentTime = time;
     lrcMove();
-  })
+  }),
+  // 切换封面
+  checkoutCover() {
+    switch (playerConfig.cover) {
+      case 'round':
+        playerConfig.cover = 'square'
+        break;
+      case 'square':
+        playerConfig.cover = 'round'
+        break;
+
+    }
+  }
 });
 
 // 播放器原生事件
@@ -262,16 +277,20 @@ const audioEvents = reactive({
     playerConfig.reAnimation = true;
     playerConfig.play = false;
     switch (playerConfig.mode) {
+      // 循环模式
       case "loop":
         playerEvents.c_replay();
         playerConfig.lrcIndex = 0;
         break;
+      // 随机模式
       case "random":
         getMusic();
         playerConfig.lrcIndex = 0;
+        audio.value?.load()
         playerEvents.c_replay();
         break;
       default:
+        ElMessage.warning('无效模式')
         break;
     }
   },
@@ -305,6 +324,14 @@ const audioEvents = reactive({
       grouping: true,
     });
   },
+  // 音乐可以播放时触发
+  canplay() {
+    loading.value = false
+  },
+  // 音乐缓冲时触发
+  waiting() {
+    loading.value = true
+  }
 });
 
 // 监听控制字段
@@ -312,16 +339,16 @@ watchEffect(() => {
   // 监听播放
   try {
     if (playerConfig.play) {
-      audio.value?.play();
-      // 当音乐没有正确播放则不进行操作
-      if (audio.value?.paused) {
-        playerConfig.play = false;
-        return;
-      }
-      coverAction.value = "running";
-      if (playerConfig.reAnimation) {
-        playerConfig.reAnimation = false;
-      }
+      audio.value?.play().then(() => {
+        if (audio.value?.paused) {
+          playerConfig.play = false;
+          return;
+        }
+        coverAction.value = "running";
+        if (playerConfig.reAnimation) {
+          playerConfig.reAnimation = false;
+        }
+      })
     } else if (!playerConfig.play) {
       coverAction.value = "paused";
       if (audio.value?.paused) return;
@@ -346,7 +373,8 @@ watch(
       i < lrc.value.length - 1, j < lrc.value.length;
       i++, j++
     ) {
-      if (
+      if (i === 0 && playerConfig.currentTime < lrc.value[i].t) index = 0
+      else if (
         playerConfig.currentTime >= lrc.value[i].t &&
         playerConfig.currentTime < lrc.value[j].t
       ) {
@@ -423,15 +451,16 @@ watch(
   }
 );
 
-const progressBox=ref<HTMLDivElement>()
+const progressBox = ref<HTMLDivElement>()
 
 onMounted(() => {
   getMusic();
-  nextTick(()=>{
-    progressBox.value?.addEventListener('touchmove',(e:TouchEvent)=>{
+  nextTick(() => {
+    progressBox.value?.addEventListener('touchmove', (e: TouchEvent) => {
       e.preventDefault()
     })
   })
+  audio.value?.pause()
 });
 </script>
 
@@ -449,9 +478,13 @@ onMounted(() => {
         <div class="cover" :class="{
           image: musicData.pic.length > 0,
           reAnimation: playerConfig.reAnimation,
-        }"></div>
+        }" v-if="playerConfig.cover === 'round'"></div>
+        <div class="cover square" :class="{
+          image: musicData.pic.length > 0,
+        }" v-else></div>
         <!-- 主控 -->
         <div class="control" id="control">
+
           <!-- 播放 -->
           <play theme="outline" size="50" fill="#fff" v-if="!playerConfig.play" @click="playerEvents.c_play" />
           <!-- 暂停 -->
@@ -462,6 +495,10 @@ onMounted(() => {
 
         <!-- 次要控制 -->
         <div class="control_second" id="toollist">
+          <!-- 封面切换 -->
+          <div class="checkoutCover" id="checkoutCover" @click="playerEvents.checkoutCover">
+            <switch-themes theme="outline" size="20" fill="#fff" />
+          </div>
           <!-- 主题 -->
           <div class="theme" id="theme" @click="playerEvents.checkoutTheme">
             <theme theme="outline" size="20" fill="#fff" />
@@ -477,6 +514,7 @@ onMounted(() => {
             <play-cycle theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'loop'" />
             <shuffle-one theme="outline" size="20" fill="#fff" v-show="playerConfig.mode === 'random'" />
           </div>
+          <!-- 帮助 -->
           <div class="help" @click="playerEvents.help">
             <help theme="outline" size="20" fill="#fff" />
           </div>
@@ -508,10 +546,10 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended"
+        @timeupdate="audioEvents.timeupdate" @durationchange="audioEvents.durationchange" @error="audioEvents.error"
+        @waiting="audioEvents.waiting" @canplay="audioEvents.canplay"></audio>
     </div>
-
-    <audio ref="audio" :src="musicData.url" preload="auto" @ended="audioEvents.ended" @timeupdate="audioEvents.timeupdate"
-      @durationchange="audioEvents.durationchange" @error="audioEvents.error"></audio>
   </div>
 </template>
 
@@ -613,6 +651,19 @@ onMounted(() => {
         &.image {
           background-image: v-bind("coverImage");
           background-size: cover;
+        }
+
+        &.square {
+          border-radius: 0;
+          animation: none;
+
+          &::before {
+            display: none;
+          }
+
+          &::after {
+            display: none;
+          }
         }
       }
 
