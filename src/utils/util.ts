@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import * as types from "../types/index";
-import { IMusicData, ISystemSet } from "../types/index";
+import { ISystemSet } from "../types/index";
 
 /**
  * 将秒转为时间 格式00:00
@@ -90,7 +90,6 @@ export const systemConfig = ref<ISystemSet>([
   {
     title: '保存设置',
     target: 'saveConfig',
-    event: 'checkoutSave'
   },
   {
     title: '自动歌词颜色',
@@ -109,13 +108,7 @@ export const systemConfig = ref<ISystemSet>([
     target: 'titleIsLrc',
     activeText: '歌词',
     inactiveText: '歌名',
-    event(
-      context: {
-        playerConfig: { [key: string]: any },
-        lrc: any[],
-        musicData: IMusicData
-      }
-    ) {
+    event(context) {
       const { playerConfig, lrc, musicData } = context
       if (playerConfig.titleIsLrc && lrc.length > 0) {
         document.title = lrc[playerConfig.lrcIndex].c

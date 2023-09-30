@@ -26,12 +26,21 @@ export declare interface ILRC {
 export declare type playMode = 'default' | 'loop' | 'random'
 
 // 系统设置
-export declare type ISystemSet={
-  title:string,
-  event?:string|function,
-  target:string,
-  action?:string|number|boolean,
-  inactive?:string|number|boolean,
-  activeText?:string,
-  inactiveText?:string
+export declare type ISystemSet = {
+  title: string,
+  event?: ISystemEvent,
+  target: string,
+  action?: string | number | boolean,
+  inactive?: string | number | boolean,
+  activeText?: string,
+  inactiveText?: string
 }[]
+
+// 系统设置事件类型
+export declare type ISystemEvent = string | ((context: {
+  playerConfig: {
+    [key: string]: any
+  },
+  lrc: any[],
+  musicData: IMusicData
+}) => any) | undefined

@@ -11,6 +11,7 @@ import {
 import { ElMessage, ElDialog, ElSwitch } from "element-plus";
 import { themeList, introOptions } from "./config";
 import { lrcToList, timeToString, throttle, systemConfig } from "./utils/util";
+import { ISystemEvent } from './types'
 import {
   Play,
   PauseOne,
@@ -277,19 +278,13 @@ const playerEvents = reactive({
         break;
     }
   },
-  // 保存设置切换
-  checkoutSave() {
-    if (playerConfig.saveConfig) {
-      watchSaveChange = watch(() => playerConfig, (nv) => {
-        const { saveConfig, autoColor, cover, titleIsLrc } = nv
-        localStorage.setItem("config", JSON.stringify({ saveConfig, autoColor, cover, titleIsLrc }))
-      }, {
-        deep: true,
-        immediate: true
-      })
-    } else {
-      watchSaveChange();
-      localStorage.removeItem('config')
+  switchChange(event: ISystemEvent) {
+    if (event) {
+      if (typeof event === 'string') {
+        (playerEvents as any)[event]()
+      } else {
+        event({ playerConfig, lrc: lrc.value, musicData: musicData.value })
+      }
     }
   }
 });
@@ -479,6 +474,23 @@ watch(
 
 const progressBox = ref<HTMLDivElement>()
 
+watch(() => playerConfig.saveConfig, (nv) => {
+  if (nv) {
+    watchSaveChange = watch(() => playerConfig, (nv) => {
+      const { saveConfig, autoColor, cover, titleIsLrc } = nv
+      localStorage.setItem("config", JSON.stringify({ saveConfig, autoColor, cover, titleIsLrc }))
+    }, {
+      deep: true,
+      immediate: true
+    })
+  } else {
+    watchSaveChange&&watchSaveChange();
+    localStorage.removeItem('config')
+  }
+},{
+  immediate:true
+})
+
 onMounted(() => {
   getMusic();
   nextTick(() => {
@@ -586,7 +598,7 @@ onMounted(() => {
               <div class="set_text">{{ item.title }}：</div>
               <el-switch v-model="(playerConfig as any)[item.target]" :active-value="item.action || true"
                 :inactive-value="item.inactive || false" inline-prompt :active-text="item.activeText"
-                :inactive-text="item.inactiveText" @change="()=>item.event&&item.event({playerConfig,lrc,musicData})" />
+                :inactive-text="item.inactiveText" @change="playerEvents.switchChange(item.event)" />
             </div>
           </div>
         </ElDialog>
