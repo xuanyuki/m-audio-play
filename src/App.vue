@@ -345,7 +345,13 @@ const audioEvents = reactive({
   // 音乐可以播放时触发
   canplay() {
     loading.value = false;
+    playerEvents.c_play();
   },
+  canplaythrough() {
+    loading.value = false;
+    playerEvents.c_play();
+  },
+
   // 音乐缓冲时触发
   waiting() {
     loading.value = true;
@@ -702,6 +708,8 @@ onMounted(() => {
         </ElDialog>
       </div>
       <audio
+        autoplay
+        crossorigin
         ref="audio"
         :src="musicData.url"
         preload="auto"
@@ -711,6 +719,7 @@ onMounted(() => {
         @error="audioEvents.error"
         @waiting="audioEvents.waiting"
         @canplay="audioEvents.canplay"
+        @canplaythrough="audioEvents.canplaythrough"
       ></audio>
     </div>
   </div>
