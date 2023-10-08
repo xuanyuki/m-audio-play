@@ -709,6 +709,7 @@ onMounted(() => {
       </div>
       <audio
         autoplay
+        crossorigin=""
         ref="audio"
         :src="musicData.url"
         preload="auto"
@@ -725,6 +726,9 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
+* {
+  -webkit-tap-highlight-color: transparent !important;
+}
 .container {
   max-height: 100vh;
   width: 100vw;
