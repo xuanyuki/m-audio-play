@@ -709,7 +709,6 @@ onMounted(() => {
       </div>
       <audio
         autoplay
-        crossorigin
         ref="audio"
         :src="musicData.url"
         preload="auto"
