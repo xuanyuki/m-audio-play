@@ -6,6 +6,7 @@ import {
   reactive,
   ref,
   watch,
+  h,
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
@@ -25,6 +26,7 @@ import {
   Help,
   SwitchThemes,
   SettingConfig,
+  ViewList,
 } from "@icon-park/vue-next";
 
 import introJs from "intro.js";
@@ -64,6 +66,9 @@ const coverImage = computed(() => {
 // 控制封面旋转
 const coverAction = ref<"paused" | "running">("running");
 
+// 歌曲列表
+const musicList = ref<any[]>([]);
+
 // 控制播放器字段
 const playerConfig = reactive({
   // 主题
@@ -100,6 +105,8 @@ const playerConfig = reactive({
   titleIsLrc: true,
   // 保存设置
   saveConfig: false,
+  // 打开播放列表页
+  showPlayList: false,
 });
 
 // 播放器展示数据
@@ -143,6 +150,26 @@ function lrcMove() {
     playerConfig.lrcIndex = index;
   }
 }
+
+// 获取音乐列表
+const getMusicList = async () => {
+  if (musicList.value.length > 0) return;
+  try {
+    //请求播放列表
+    //const { data: result } = await apis;
+    //if (result.state === "success") {
+    //   const { data: music_list } = result;
+    //   data.forEach(async (item) => {});
+    //   return Promise.resolve();
+    // } else {
+    //   ElMessage.error("音乐列表获取失败");
+    //   return Promise.reject();
+    // }
+  } catch {
+    ElMessage.error("音乐列表获取失败");
+    return Promise.reject();
+  }
+};
 
 // 播放器事件
 const playerEvents = reactive({
@@ -209,7 +236,7 @@ const playerEvents = reactive({
       case "default":
         playerConfig.mode = "loop";
         ElMessage({
-          message: "播放模式切换为 循环播放",
+          message: "播放模式切换为 单曲循环",
           type: "info",
           grouping: true,
         });
@@ -223,6 +250,26 @@ const playerEvents = reactive({
         });
         break;
       case "random":
+        playerConfig.mode = "list";
+        ElMessage({
+          message: h(
+            "div",
+            {
+              style: "font-size:14px;color:#aaa",
+            },
+            [
+              h("p", null, "播放模式切换为 列表模式"),
+              h("p", null, "向右滑动切换至播放列表"),
+            ]
+          ),
+          type: "info",
+          grouping: true,
+        });
+        getMusicList().catch(() => {
+          playerConfig.mode = "default";
+        });
+        break;
+      case "list":
         playerConfig.mode = "default";
         ElMessage({
           message: "播放模式切换为 默认",
@@ -306,6 +353,12 @@ const audioEvents = reactive({
         getMusic();
         playerConfig.lrcIndex = 0;
         playerEvents.c_replay();
+        break;
+      case "default":
+        playerConfig.play = false;
+        audio.value.pause();
+        break;
+      case "list":
         break;
       default:
         ElMessage.warning("无效模式");
@@ -479,6 +532,7 @@ watch(
 
 const progressBox = ref<HTMLDivElement>();
 
+// 自动保存设置
 watch(
   () => playerConfig.saveConfig,
   (nv) => {
@@ -486,10 +540,10 @@ watch(
       watchSaveChange = watch(
         () => playerConfig,
         (nv) => {
-          const { saveConfig, autoColor, cover, titleIsLrc } = nv;
+          const { saveConfig, autoColor, cover, titleIsLrc, mode } = nv;
           localStorage.setItem(
             "config",
-            JSON.stringify({ saveConfig, autoColor, cover, titleIsLrc })
+            JSON.stringify({ saveConfig, autoColor, cover, titleIsLrc, mode })
           );
         },
         {
@@ -504,6 +558,22 @@ watch(
   }
 );
 
+// 全局监听向右滑动事件，打开播放列表
+function mountWindowTouchMove() {
+  let x = 0;
+  window.addEventListener("touchstart", (e: TouchEvent) => {
+    x = e.targetTouches[0].clientX;
+  });
+  window.addEventListener("touchend", (e: TouchEvent) => {
+    if (
+      e.changedTouches[0].clientX - x >= 300 &&
+      playerConfig.mode === "list"
+    ) {
+      playerConfig.showPlayList = true;
+    }
+  });
+}
+
 onMounted(() => {
   getMusic();
   nextTick(() => {
@@ -515,6 +585,12 @@ onMounted(() => {
     playerConfig,
     JSON.parse(localStorage.getItem("config") || "{}")
   );
+  mountWindowTouchMove();
+  if (playerConfig.mode === "list") {
+    getMusicList().catch(() => {
+      playerConfig.mode = "default";
+    });
+  }
 });
 </script>
 
@@ -633,6 +709,12 @@ onMounted(() => {
               fill="#fff"
               v-show="playerConfig.mode === 'random'"
             />
+            <view-list
+              theme="outline"
+              size="20"
+              fill="#fff"
+              v-show="playerConfig.mode === 'list'"
+            />
           </div>
           <!-- 设置 -->
           <div class="set" id="set" @click="playerConfig.showSet = true">
@@ -706,6 +788,22 @@ onMounted(() => {
             </div>
           </div>
         </ElDialog>
+
+        <!-- 音乐列表 -->
+        <ElDrawer
+          v-model="playerConfig.showPlayList"
+          title="播放列表"
+          direction="ltr"
+          size="100%"
+        >
+          <div class="music_list">
+            <div
+              class="music_item"
+              v-for="(item, index) in musicList"
+              :key="index"
+            ></div>
+          </div>
+        </ElDrawer>
       </div>
       <audio
         autoplay
@@ -960,6 +1058,11 @@ onMounted(() => {
     .set_text {
       font-size: 14px;
     }
+  }
+}
+
+.music_list {
+  .music_item {
   }
 }
 

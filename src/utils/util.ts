@@ -1,6 +1,5 @@
 import { ref } from "vue";
-import * as types from "../types/index";
-import { ISystemSet } from "../types/index";
+import * as types from "../types";
 
 /**
  * 将秒转为时间 格式00:00
@@ -65,58 +64,58 @@ export function lrcToList(text: string) {
 // 节流
 export function throttle(fn: Function, interval: number = 50) {
   //该变量用于记录上一次函数的执行事件
-  let lastTime = 0
+  let lastTime = 0;
 
   const _throttle: (args: any) => void = function (...args) {
     // 获取当前时间
-    const nowTime = new Date().getTime()
+    const nowTime = new Date().getTime();
 
     // cd剩余时间
-    const remainTime = nowTime - lastTime
+    const remainTime = nowTime - lastTime;
     // 如果剩余时间大于间隔时间，也就是说可以再次执行函数
     if (remainTime - interval >= 0) {
       // @ts-ignore
-      fn.apply(this, args)
+      fn.apply(this, args);
       // 将上一次函数执行的时间设置为nowTime，这样下次才能重新进入cd
-      lastTime = nowTime
+      lastTime = nowTime;
     }
-  }
+  };
   // 返回_throttle函数
-  return _throttle
+  return _throttle;
 }
 
 // 系统设置列表
-export const systemConfig = ref<ISystemSet>([
+export const systemConfig = ref<types.ISystemSet>([
   {
-    title: '保存设置',
-    target: 'saveConfig',
+    title: "保存设置",
+    target: "saveConfig",
   },
   {
-    title: '自动歌词颜色',
-    target: 'autoColor',
-    action: 'difference',
-    inactive: 'default'
-  }, {
-    title: '封面样式',
-    target: 'cover',
-    action: 'square',
-    inactive: 'round',
-    activeText: '方形',
-    inactiveText: '圆形'
-  }, {
-    title: '网页标题',
-    target: 'titleIsLrc',
-    activeText: '歌词',
-    inactiveText: '歌名',
+    title: "自动歌词颜色",
+    target: "autoColor",
+    action: "difference",
+    inactive: "default",
+  },
+  {
+    title: "封面样式",
+    target: "cover",
+    action: "square",
+    inactive: "round",
+    activeText: "方形",
+    inactiveText: "圆形",
+  },
+  {
+    title: "网页标题",
+    target: "titleIsLrc",
+    activeText: "歌词",
+    inactiveText: "歌名",
     event(context) {
-      const { playerConfig, lrc, musicData } = context
+      const { playerConfig, lrc, musicData } = context;
       if (playerConfig.titleIsLrc && lrc.length > 0) {
-        document.title = lrc[playerConfig.lrcIndex].c
+        document.title = lrc[playerConfig.lrcIndex].c;
+      } else {
+        document.title = `${musicData.title} -- ${musicData.author}`;
       }
-      else {
-        document.title = `${musicData.title} -- ${musicData.author}`
-      }
-    }
-  }
-])
-
+    },
+  },
+]);

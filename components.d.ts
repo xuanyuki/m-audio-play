@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ElDialog: typeof import('element-plus/es')['ElDialog']
+    ElDrawer: typeof import('element-plus/es')['ElDrawer']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
   }
   export interface ComponentCustomProperties {
