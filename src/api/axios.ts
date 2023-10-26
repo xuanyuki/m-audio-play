@@ -46,7 +46,7 @@ axios.interceptors.response.use(
 export const fetchData: (
   method: string,
   url: string,
-  data: { [key: string]: any },
+  data?: { [key: string]: any },
   config?: { showMsg?: boolean; [key: string]: any }
 ) => Promise<any> = (method, url, data = {}, config = { showMsg: true }) => {
   return new Promise((resolve, reject) => {
@@ -68,7 +68,7 @@ export const fetchData: (
 
 export const get = function (
   url: string,
-  params: { [key: string]: any },
+  params?: { [key: string]: any },
   config?: { [key: string]: any }
 ) {
   return fetchData("get", url, params, config);

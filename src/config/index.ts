@@ -68,6 +68,11 @@ export const introOptions: Partial<Options>={
       element:'#set',
       intro:'这里可以打开设置窗口',
       position:'top'
+    },{
+      element:'#music_list',
+      intro:'这里打开播放列表',
+      position:'top'
+
     }
   ]
 }

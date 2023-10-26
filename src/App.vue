@@ -6,7 +6,6 @@ import {
   reactive,
   ref,
   watch,
-  h,
   watchEffect,
 } from "vue";
 import { ElMessage } from "element-plus";
@@ -27,6 +26,7 @@ import {
   SwitchThemes,
   SettingConfig,
   ViewList,
+  ListOne,
 } from "@icon-park/vue-next";
 
 import introJs from "intro.js";
@@ -107,6 +107,8 @@ const playerConfig = reactive({
   saveConfig: false,
   // 打开播放列表页
   showPlayList: false,
+  // 自动收起播放列表
+  autoCloseList: true,
 });
 
 // 播放器展示数据
@@ -155,16 +157,17 @@ function lrcMove() {
 const getMusicList = async () => {
   if (musicList.value.length > 0) return;
   try {
-    //请求播放列表
-    //const { data: result } = await apis;
-    //if (result.state === "success") {
-    //   const { data: music_list } = result;
-    //   data.forEach(async (item) => {});
-    //   return Promise.resolve();
-    // } else {
-    //   ElMessage.error("音乐列表获取失败");
-    //   return Promise.reject();
-    // }
+    // 请求播放列表
+    const { data: result } = await apis.getMusicList();
+    if (result.state === "success") {
+      const { data: music_list } = result;
+      musicList.value = music_list;
+
+      return Promise.resolve();
+    } else {
+      ElMessage.error("音乐列表获取失败");
+      return Promise.reject();
+    }
   } catch {
     ElMessage.error("音乐列表获取失败");
     return Promise.reject();
@@ -185,7 +188,8 @@ const playerEvents = reactive({
     audio.value!.currentTime = 0;
     playerConfig.lrcIndex = 0;
     playerConfig.reAnimation = true;
-    setTimeout(() => {
+    setTimeout(async () => {
+      await audio.value!.load();
       playerConfig.reAnimation = false;
       playerConfig.play = true;
     }, 200);
@@ -252,16 +256,7 @@ const playerEvents = reactive({
       case "random":
         playerConfig.mode = "list";
         ElMessage({
-          message: h(
-            "div",
-            {
-              style: "font-size:14px;color:#aaa",
-            },
-            [
-              h("p", null, "播放模式切换为 列表模式"),
-              h("p", null, "向右滑动切换至播放列表"),
-            ]
-          ),
+          message: "播放模式切换为 列表播放",
           type: "info",
           grouping: true,
         });
@@ -332,6 +327,24 @@ const playerEvents = reactive({
       }
     }
   },
+  // 打开播放列表
+  handleMusicList() {
+    if (playerConfig.mode === "list") {
+      playerConfig.showPlayList = true;
+    } else {
+      ElMessage.warning({
+        message: "当前模式不支持播放列表",
+        grouping: true,
+      });
+    }
+  },
+  // 通过播放列表切换音乐
+  listCheckoutMusic(id: string) {
+    getMusic({ id });
+    if (playerConfig.autoCloseList) {
+      playerConfig.showPlayList = false;
+    }
+  },
 });
 
 let watchSaveChange: any = null;
@@ -356,9 +369,21 @@ const audioEvents = reactive({
         break;
       case "default":
         playerConfig.play = false;
-        audio.value.pause();
+        audio.value!.pause();
         break;
       case "list":
+        const playIndex = musicList.value.findIndex(
+          (music) => music.id == musicData.value.songid
+        );
+        if (playIndex !== -1) {
+          if (playIndex === musicList.value.length - 1) {
+            getMusic({ id: musicList.value[0].id });
+          } else {
+            getMusic({ id: musicList.value[playIndex + 1].id });
+          }
+          playerConfig.lrcIndex = 0;
+          playerEvents.c_replay();
+        }
         break;
       default:
         ElMessage.warning("无效模式");
@@ -487,10 +512,15 @@ watch(
   }
 );
 
+type IGetMusicParam = {
+  random?: any;
+  id?: string;
+};
+
 // 获取音乐参数
-const getMusic = async () => {
+const getMusic = async (params: IGetMusicParam = { random: 1 }) => {
   try {
-    const res = await apis.getMusic({ random: 1 });
+    const res = await apis.getMusic(params);
     const { state } = res.data;
     if (state === "warning") {
       const { message } = res.data;
@@ -504,6 +534,7 @@ const getMusic = async () => {
       });
     } else {
       const { data } = res.data;
+      localStorage.setItem("lastPlay", data.songid);
       musicData.value = data;
       lrc.value = lrcToList(musicData.value!.lrc).ms;
       document.title = `${musicData.value.title} -- ${musicData.value.author}`;
@@ -558,24 +589,20 @@ watch(
   }
 );
 
-// 全局监听向右滑动事件，打开播放列表
-function mountWindowTouchMove() {
-  let x = 0;
-  window.addEventListener("touchstart", (e: TouchEvent) => {
-    x = e.targetTouches[0].clientX;
-  });
-  window.addEventListener("touchend", (e: TouchEvent) => {
-    if (
-      e.changedTouches[0].clientX - x >= 300 &&
-      playerConfig.mode === "list"
-    ) {
-      playerConfig.showPlayList = true;
-    }
-  });
-}
-
 onMounted(() => {
-  getMusic();
+  getMusicList().catch(() => {
+    playerConfig.mode = "default";
+  });
+  if (playerConfig.mode === "list") {
+    const lastPlay = localStorage.getItem("lastPlay");
+    if (lastPlay) {
+      getMusic({ id: lastPlay });
+    } else {
+      getMusic();
+    }
+  } else {
+    getMusic();
+  }
   nextTick(() => {
     progressBox.value?.addEventListener("touchmove", (e: TouchEvent) => {
       e.preventDefault();
@@ -585,12 +612,6 @@ onMounted(() => {
     playerConfig,
     JSON.parse(localStorage.getItem("config") || "{}")
   );
-  mountWindowTouchMove();
-  if (playerConfig.mode === "list") {
-    getMusicList().catch(() => {
-      playerConfig.mode = "default";
-    });
-  }
 });
 </script>
 
@@ -635,7 +656,7 @@ onMounted(() => {
           <play
             theme="outline"
             size="50"
-            fill="#fff"
+            fill="#aaa"
             v-if="!playerConfig.play"
             @click="playerEvents.c_play"
           />
@@ -643,7 +664,7 @@ onMounted(() => {
           <pause-one
             theme="outline"
             size="50"
-            fill="#fff"
+            fill="#aaa"
             v-else
             @click="playerEvents.c_play"
           />
@@ -651,7 +672,7 @@ onMounted(() => {
           <replay-music
             theme="outline"
             size="50"
-            fill="#fff"
+            fill="#aaa"
             @click="playerEvents.c_replay"
           />
         </div>
@@ -664,11 +685,11 @@ onMounted(() => {
             id="checkoutCover"
             @click="playerEvents.checkoutCover"
           >
-            <switch-themes theme="outline" size="20" fill="#fff" />
+            <switch-themes theme="outline" size="20" fill="#aaa" />
           </div>
           <!-- 主题 -->
           <div class="theme" id="theme" @click="playerEvents.checkoutTheme">
-            <theme theme="outline" size="20" fill="#fff" />
+            <theme theme="outline" size="20" fill="#aaa" />
           </div>
           <!-- 文字自适应 -->
           <div
@@ -679,13 +700,13 @@ onMounted(() => {
             <translation
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.autoColor === 'difference'"
             />
             <Text
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.autoColor === 'default'"
             />
           </div>
@@ -694,35 +715,43 @@ onMounted(() => {
             <play-once
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.mode === 'default'"
             />
             <play-cycle
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.mode === 'loop'"
             />
             <shuffle-one
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.mode === 'random'"
             />
             <view-list
               theme="outline"
               size="20"
-              fill="#fff"
+              fill="#aaa"
               v-show="playerConfig.mode === 'list'"
             />
           </div>
           <!-- 设置 -->
           <div class="set" id="set" @click="playerConfig.showSet = true">
-            <setting-config theme="outline" size="20" fill="#fff" />
+            <setting-config theme="outline" size="20" fill="#aaa" />
+          </div>
+          <!-- 打开播放列表 -->
+          <div
+            class="music_list"
+            id="music_list"
+            @click="playerEvents.handleMusicList"
+          >
+            <list-one theme="outline" size="20" fill="#aaa" />
           </div>
           <!-- 帮助 -->
           <div class="help" @click="playerEvents.help">
-            <help theme="outline" size="20" fill="#fff" />
+            <help theme="outline" size="20" fill="#aaa" />
           </div>
         </div>
 
@@ -793,15 +822,19 @@ onMounted(() => {
         <ElDrawer
           v-model="playerConfig.showPlayList"
           title="播放列表"
-          direction="ltr"
+          direction="rtl"
           size="100%"
         >
           <div class="music_list">
             <div
               class="music_item"
-              v-for="(item, index) in musicList"
-              :key="index"
-            ></div>
+              v-for="item in musicList"
+              :key="item.id"
+              :class="{ action: musicData.songid === item.id }"
+              @click="playerEvents.listCheckoutMusic(item.id)"
+            >
+              {{ item.name }} -- {{ item.author }}
+            </div>
           </div>
         </ElDrawer>
       </div>
@@ -1048,6 +1081,7 @@ onMounted(() => {
   .set_item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     border-bottom: 1px solid #ddd;
     padding: 4px 0;
 
@@ -1063,6 +1097,15 @@ onMounted(() => {
 
 .music_list {
   .music_item {
+    padding: 1em 10px;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    box-sizing: border-box;
+
+    &.action {
+      background-color: #eee;
+      border-left: 3px solid blue;
+    }
   }
 }
 

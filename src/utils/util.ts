@@ -117,5 +117,8 @@ export const systemConfig = ref<types.ISystemSet>([
         document.title = `${musicData.title} -- ${musicData.author}`;
       }
     },
-  },
+  },{
+    title:'选择歌曲后自动关闭播放列表',
+    target:'autoCloseList',
+  }
 ]);
