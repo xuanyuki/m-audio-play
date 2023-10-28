@@ -5,12 +5,18 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@icon-park/vue-next':
+    specifier: ^1.4.2
+    version: 1.4.2(vue@3.3.4)
   axios:
     specifier: ^1.4.0
     version: 1.4.0
   element-plus:
     specifier: ^2.3.9
     version: 2.3.9(vue@3.3.4)
+  intro.js:
+    specifier: ^7.2.0
+    version: 7.2.0
   sass:
     specifier: ^1.66.1
     version: 1.66.1
@@ -26,8 +32,8 @@ devDependencies:
     specifier: ^4.2.3
     version: 4.2.3(vite@4.4.5)(vue@3.3.4)
   typescript:
-    specifier: ^5.0.2
-    version: 5.0.2
+    specifier: ^4.8.4
+    version: registry.npmmirror.com/typescript@4.8.4
   unplugin-auto-import:
     specifier: ^0.16.6
     version: 0.16.6
@@ -39,7 +45,7 @@ devDependencies:
     version: 4.4.5(sass@1.66.1)
   vue-tsc:
     specifier: ^1.8.5
-    version: 1.8.5(typescript@5.0.2)
+    version: 1.8.5(typescript@4.8.4)
 
 packages:
 
@@ -298,6 +304,15 @@ packages:
     resolution: {integrity: sha512-m0G6wlnhm/AX0H12IOWtK8gASEMffnX08RtKkCgTdHb9JpHKGloI7icFfLg9ZmQeavcvR0PKmzxClyuFPSjKWw==}
     dev: false
 
+  /@icon-park/vue-next@1.4.2(vue@3.3.4):
+    resolution: {integrity: sha512-+QklF255wkfBOabY+xw6FAI0Bwln/RhdwCunNy/9sKdKuChtaU67QZqU67KGAvZUTeeBgsL+yaHHxqfQeGZXEQ==}
+    engines: {node: '>= 8.0.0', npm: '>= 5.0.0'}
+    peerDependencies:
+      vue: 3.x
+    dependencies:
+      vue: 3.3.4
+    dev: false
+
   /@jridgewell/sourcemap-codec@1.4.15:
     resolution: {integrity: sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==}
 
@@ -421,7 +436,7 @@ packages:
       '@vue/compiler-dom': 3.3.4
       '@vue/shared': 3.3.4
 
-  /@vue/language-core@1.8.5(typescript@5.0.2):
+  /@vue/language-core@1.8.5(typescript@4.8.4):
     resolution: {integrity: sha512-DKQNiNQzNV7nrkZQujvjfX73zqKdj2+KoM4YeKl+ft3f+crO3JB4ycPnmgaRMNX/ULJootdQPGHKFRl5cXxwaw==}
     peerDependencies:
       typescript: '*'
@@ -436,7 +451,7 @@ packages:
       '@vue/shared': 3.3.4
       minimatch: 9.0.3
       muggle-string: 0.3.1
-      typescript: 5.0.2
+      typescript: registry.npmmirror.com/typescript@4.8.4
       vue-template-compiler: 2.7.14
     dev: true
 
@@ -479,11 +494,11 @@ packages:
   /@vue/shared@3.3.4:
     resolution: {integrity: sha512-7OjdcV8vQ74eiz1TZLzZP4JwqM5fA94K6yntPS5Z25r9HDuGNzaGdgvwKYq6S+MxwF0TFRwe50fIR/MYnakdkQ==}
 
-  /@vue/typescript@1.8.5(typescript@5.0.2):
+  /@vue/typescript@1.8.5(typescript@4.8.4):
     resolution: {integrity: sha512-domFBbNr3PEcjGBeB+cmgUM3cI6pJsJezguIUKZ1rphkfIkICyoMjCd3TitoP32yo2KABLiaXcGFzgFfQf6B3w==}
     dependencies:
       '@volar/typescript': 1.9.2
-      '@vue/language-core': 1.8.5(typescript@5.0.2)
+      '@vue/language-core': 1.8.5(typescript@4.8.4)
     transitivePeerDependencies:
       - typescript
     dev: true
@@ -754,6 +769,10 @@ packages:
   /immutable@4.3.2:
     resolution: {integrity: sha512-oGXzbEDem9OOpDWZu88jGiYCvIsLHMvGw+8OXlpsvTFvIQplQbjg1B1cvKg8f7Hoch6+NGjpPsH1Fr+Mc2D1aA==}
 
+  /intro.js@7.2.0:
+    resolution: {integrity: sha512-qbMfaB70rOXVBceIWNYnYTpVTiZsvQh/MIkfdQbpA9di9VBfj1GigUPfcCv3aOfsbrtPcri8vTLTA4FcEDcHSQ==}
+    dev: false
+
   /is-binary-path@2.1.0:
     resolution: {integrity: sha512-ZMERYes6pDydyuGidse7OsHxtbI7WVeUEozgR/g7rd0xUimYNlvZRE/K2MgZTjWy725IfelLeVcEM97mmtRGXw==}
     engines: {node: '>=8'}
@@ -1019,12 +1038,6 @@ packages:
     dependencies:
       is-number: 7.0.0
 
-  /typescript@5.0.2:
-    resolution: {integrity: sha512-wVORMBGO/FAs/++blGNeAVdbNKtIh1rbBL2EyQ1+J9lClJ93KiiKe8PmFIVdXhHcyv44SL9oglmfeSsndo0jRw==}
-    engines: {node: '>=12.20'}
-    hasBin: true
-    dev: true
-
   /ufo@1.2.0:
     resolution: {integrity: sha512-RsPyTbqORDNDxqAdQPQBpgqhWle1VcTSou/FraClYlHf6TZnQcGslpLcAphNR+sQW4q5lLWLbOsRlh9j24baQg==}
     dev: true
@@ -1167,16 +1180,16 @@ packages:
       he: 1.2.0
     dev: true
 
-  /vue-tsc@1.8.5(typescript@5.0.2):
+  /vue-tsc@1.8.5(typescript@4.8.4):
     resolution: {integrity: sha512-Jr8PTghJIwp69MFsEZoADDcv2l+lXA8juyN/5AYA5zxyZNvIHjSbgKgkYIYc1qnihrOyIG1VOnfk4ZE0jqn8bw==}
     hasBin: true
     peerDependencies:
       typescript: '*'
     dependencies:
-      '@vue/language-core': 1.8.5(typescript@5.0.2)
-      '@vue/typescript': 1.8.5(typescript@5.0.2)
+      '@vue/language-core': 1.8.5(typescript@4.8.4)
+      '@vue/typescript': 1.8.5(typescript@4.8.4)
       semver: 7.5.4
-      typescript: 5.0.2
+      typescript: registry.npmmirror.com/typescript@4.8.4
     dev: true
 
   /vue@3.3.4:
@@ -1199,4 +1212,12 @@ packages:
 
   /yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
+    dev: true
+
+  registry.npmmirror.com/typescript@4.8.4:
+    resolution: {integrity: sha512-QCh+85mCy+h0IGff8r5XWzOVSbBO+KfeYrMQh7NJ58QujwcE22u+NUSmUxqF+un70P9GXKxa2HCNiTTMJknyjQ==, registry: https://mirrors.youpin-k8s.net/repository/npm/, tarball: https://registry.npmmirror.com/typescript/-/typescript-4.8.4.tgz}
+    name: typescript
+    version: 4.8.4
+    engines: {node: '>=4.2.0'}
+    hasBin: true
     dev: true
